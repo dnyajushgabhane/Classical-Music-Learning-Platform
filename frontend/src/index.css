@@ -1,0 +1,97 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Outfit:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-background-dark text-ivory/95 font-sans antialiased m-0 min-h-screen;
+    background-image:
+      radial-gradient(ellipse 120% 80% at 50% -30%, rgba(59, 10, 10, 0.45), transparent 50%),
+      radial-gradient(ellipse 60% 40% at 100% 20%, rgba(212, 175, 55, 0.06), transparent 45%),
+      radial-gradient(ellipse 50% 30% at 0% 80%, rgba(184, 115, 51, 0.08), transparent 40%),
+      theme(backgroundImage.texture-paper);
+    background-attachment: fixed;
+  }
+}
+
+@layer components {
+  .glass-nav {
+    background: rgba(15, 15, 15, 0.72);
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    border-bottom: 1px solid rgba(212, 175, 55, 0.22);
+    box-shadow:
+      0 0 0 1px rgba(212, 175, 55, 0.08),
+      0 24px 48px rgba(0, 0, 0, 0.35);
+  }
+
+  .glass-panel {
+    background: rgba(20, 17, 16, 0.65);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(212, 175, 55, 0.12);
+    box-shadow: theme(boxShadow.card);
+  }
+
+  .glass {
+    @apply glass-panel rounded-2xl;
+  }
+
+  .text-gradient-gold {
+    background: linear-gradient(135deg, #f0d78c 0%, #d4af37 45%, #b8941f 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .text-gradient-gold-subtle {
+    background: linear-gradient(90deg, #f8f1e9 0%, #d4af37 50%, #e8c85c 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .border-gradient-gold {
+    border-image: linear-gradient(135deg, rgba(232, 200, 92, 0.9), rgba(212, 175, 55, 0.4), rgba(184, 115, 51, 0.6))
+      1;
+  }
+
+  .link-underline-gold {
+    @apply relative inline-block;
+  }
+  .link-underline-gold::after {
+    content: "";
+    @apply absolute left-0 bottom-0 h-px w-0 bg-gradient-to-r from-gold-dark via-gold to-copper opacity-90 transition-all duration-300 ease-out;
+  }
+  .link-underline-gold:hover::after {
+    @apply w-full;
+  }
+
+  .music-sheet-card {
+    background: linear-gradient(165deg, rgba(248, 241, 233, 0.04) 0%, rgba(15, 15, 15, 0.92) 12%),
+      repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 27px,
+        rgba(212, 175, 55, 0.06) 27px,
+        rgba(212, 175, 55, 0.06) 28px
+      );
+    border: 1px solid rgba(212, 175, 55, 0.18);
+    box-shadow: inset 0 1px 0 rgba(248, 241, 233, 0.06), 0 20px 40px rgba(0, 0, 0, 0.4);
+  }
+
+  .btn-ripple {
+    @apply relative overflow-hidden;
+  }
+}
+
+@layer utilities {
+  .perspective-dramatic {
+    perspective: 1400px;
+  }
+}

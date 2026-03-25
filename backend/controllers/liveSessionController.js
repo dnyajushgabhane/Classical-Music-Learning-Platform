@@ -1,0 +1,357 @@
+const LiveSession = require('../models/LiveSession');
+const SessionMessage = require('../models/SessionMessage');
+const SessionRecording = require('../models/SessionRecording');
+const {
+  canAccessSession,
+  canTeachSession,
+  canViewSession,
+  loadUserWithProgress,
+} = require('../utils/liveSessionAccess');
+const livekit = require('../services/livekitService');
+
+const populateTeacher = { path: 'teacher', select: 'name email role' };
+const populateCourse = { path: 'course', select: 'title instructor' };
+
+const attachIO = (req) => req.app.get('io');
+
+function emitToLive(io, roomId, event, payload) {
+  if (!io) return;
+  io.of('/live').to(roomId).emit(event, payload);
+}
+
+function emitToUser(io, userId, event, payload) {
+  if (!io) return;
+  io.of('/live').to(`user:${userId}`).emit(event, payload);
+}
+
+// @desc Create session (instructor)
+const createLiveSession = async (req, res) => {
+  try {
+    const { title, description, course, scheduledStart, scheduledEnd, waitingRoomEnabled } = req.body;
+    const session = new LiveSession({
+      title,
+      description: description || '',
+      teacher: req.user._id,
+      course: course || null,
+      scheduledStart: scheduledStart ? new Date(scheduledStart) : null,
+      scheduledEnd: scheduledEnd ? new Date(scheduledEnd) : null,
+      waitingRoomEnabled: waitingRoomEnabled !== false,
+      status: 'scheduled',
+    });
+    const saved = await session.save();
+    const out = await LiveSession.findById(saved._id).populate(populateTeacher).populate(populateCourse);
+    res.status(201).json(out);
+  } catch (error) {
+    res.status(500).json({ message: 'Server Error: ' + error.message });
+  }
+};
+
+// @desc List sessions (live + upcoming) — scoped by role / enrollment
+const getLiveSessions = async (req, res) => {
+  try {
+    const user = await loadUserWithProgress(req.user._id);
+    const statusMatch = { status: { $in: ['pending', 'scheduled', 'live'] } };
+
+    let filter;
+    if (user.role === 'Admin') {
+      filter = statusMatch;
+    } else if (user.role === 'Instructor') {
+      filter = { ...statusMatch, teacher: user._id };
+    } else {
+      const enrolledIds = (user.progress || []).map((p) => p.course).filter(Boolean);
+      filter = {
+        ...statusMatch,
+        $or: [{ course: null }, { course: { $in: enrolledIds } }],
+      };
+    }
+
+    const sessions = await LiveSession.find(filter)
+      .populate(populateTeacher)
+      .populate(populateCourse)
+      .sort({ scheduledStart: 1, createdAt: -1 })
+      .lean();
+
+    const mapped = sessions.map((s) => ({
+      ...s,
+      status: s.status === 'pending' ? 'scheduled' : s.status,
+    }));
+    res.json(mapped);
+  } catch (error) {
+    res.status(500).json({ message: 'Server Error: ' + error.message });
+  }
+};
+
+// @desc Single session (Mongo _id or roomId)
+const getLiveSessionById = async (req, res) => {
+  try {
+    const q = req.params.id;
+    const session =
+      (await LiveSession.findById(q).populate(populateTeacher).populate(populateCourse).populate({
+        path: 'waitingQueue.user',
+        select: 'name email',
+      })) ||
+      (await LiveSession.findOne({ roomId: q })
+        .populate(populateTeacher)
+        .populate(populateCourse)
+        .populate({ path: 'waitingQueue.user', select: 'name email' }));
+
+    if (!session) return res.status(404).json({ message: 'Live session not found' });
+
+    const viewer = await loadUserWithProgress(req.user._id);
+    if (!canViewSession(viewer, session)) {
+      return res.status(403).json({ message: 'You do not have access to this session' });
+    }
+
+    res.json(session);
+  } catch (error) {
+    res.status(500).json({ message: 'Server Error: ' + error.message });
+  }
+};
+
+// @desc Update go-live / end
+const updateLiveSessionStatus = async (req, res) => {
+  try {
+    const { status } = req.body;
+    const session = await LiveSession.findById(req.params.id);
+    if (!session) return res.status(404).json({ message: 'Live session not found' });
+    if (!canTeachSession(req.user, session)) {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+    if (!['scheduled', 'live', 'ended', 'pending'].includes(status)) {
+      return res.status(400).json({ message: 'Invalid status' });
+    }
+    session.status = status === 'pending' ? 'scheduled' : status;
+    await session.save();
+    emitToLive(attachIO(req), session.roomId, 'session:status', { status: session.status });
+    res.json(session);
+  } catch (error) {
+    res.status(500).json({ message: 'Server Error: ' + error.message });
+  }
+};
+
+// @desc Host settings: lock, waiting room, schedule
+const updateLiveSessionMeta = async (req, res) => {
+  try {
+    const session = await LiveSession.findById(req.params.id);
+    if (!session) return res.status(404).json({ message: 'Live session not found' });
+    if (!canTeachSession(req.user, session)) {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+    const { locked, waitingRoomEnabled, scheduledStart, scheduledEnd, spotlightIdentity } = req.body;
+    if (typeof locked === 'boolean') session.locked = locked;
+    if (typeof waitingRoomEnabled === 'boolean') session.waitingRoomEnabled = waitingRoomEnabled;
+    if (scheduledStart) session.scheduledStart = new Date(scheduledStart);
+    if (scheduledEnd) session.scheduledEnd = new Date(scheduledEnd);
+    if (typeof spotlightIdentity === 'string') session.spotlightIdentity = spotlightIdentity;
+    await session.save();
+    emitToLive(attachIO(req), session.roomId, 'session:meta', {
+      locked: session.locked,
+      waitingRoomEnabled: session.waitingRoomEnabled,
+      spotlightIdentity: session.spotlightIdentity,
+    });
+    res.json(session);
+  } catch (error) {
+    res.status(500).json({ message: 'Server Error: ' + error.message });
+  }
+};
+
+// @desc LiveKit JWT for SFU
+const getLiveKitToken = async (req, res) => {
+  try {
+    const session = await LiveSession.findById(req.params.id).populate('course');
+    if (!session) return res.status(404).json({ message: 'Live session not found' });
+
+    const user = await loadUserWithProgress(req.user._id);
+    if (!canAccessSession(user, session)) {
+      return res.status(403).json({ message: 'Not enrolled or session locked/ended' });
+    }
+
+    const isTeacher = canTeachSession(user, session);
+
+    if (!isTeacher && session.status !== 'live') {
+      return res.status(403).json({ code: 'NOT_LIVE', message: 'The class is not live yet.' });
+    }
+
+    if (session.waitingRoomEnabled && !isTeacher) {
+      const admitted = session.admittedUsers.some((id) => id.toString() === user._id.toString());
+      if (!admitted) {
+        return res.status(403).json({ code: 'WAITING_ROOM', message: 'Wait for host to admit you' });
+      }
+    }
+
+    const identity = `uid:${user._id.toString()}`;
+    const token = livekit.createParticipantToken(identity, user.name, session.roomId, {
+      canPublish: true,
+    });
+
+    res.json({
+      token,
+      url: livekit.getWsUrl(),
+      roomName: session.roomId,
+      identity,
+      isTeacher,
+      livekitConfigured: livekit.isConfigured(),
+    });
+  } catch (error) {
+    const code = error.statusCode || 500;
+    res.status(code).json({ message: error.message });
+  }
+};
+
+// @desc Student enters waiting queue
+const joinWaitingRoom = async (req, res) => {
+  try {
+    const session = await LiveSession.findById(req.params.id);
+    if (!session) return res.status(404).json({ message: 'Live session not found' });
+
+    const user = await loadUserWithProgress(req.user._id);
+    if (canTeachSession(user, session)) {
+      return res.json({ admitted: true, message: 'Host does not use waiting room' });
+    }
+    if (!canAccessSession(user, session)) {
+      return res.status(403).json({ message: 'Not enrolled' });
+    }
+    if (!session.waitingRoomEnabled) {
+      session.admittedUsers.addToSet(user._id);
+      await session.save();
+      return res.json({ admitted: true });
+    }
+
+    if (session.admittedUsers.some((id) => id.toString() === user._id.toString())) {
+      return res.json({ admitted: true });
+    }
+
+    const already = session.waitingQueue.some((w) => w.user.toString() === user._id.toString());
+    if (!already) session.waitingQueue.push({ user: user._id });
+    await session.save();
+
+    emitToLive(attachIO(req), session.roomId, 'waiting:user-joined', {
+      userId: user._id.toString(),
+      name: user.name,
+      queueLength: session.waitingQueue.length,
+    });
+
+    res.json({ admitted: false, waiting: true });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc Admit one student
+const admitWaitingUser = async (req, res) => {
+  try {
+    const { userId } = req.body;
+    const session = await LiveSession.findById(req.params.id);
+    if (!session) return res.status(404).json({ message: 'Live session not found' });
+    if (!canTeachSession(req.user, session)) {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+    session.admittedUsers.addToSet(userId);
+    session.waitingQueue = session.waitingQueue.filter((w) => w.user.toString() !== userId);
+    await session.save();
+
+    emitToUser(attachIO(req), userId, 'waiting:admitted', {
+      sessionId: session._id.toString(),
+      roomId: session.roomId,
+    });
+    emitToLive(attachIO(req), session.roomId, 'waiting:admitted-broadcast', { userId });
+
+    res.json({ ok: true });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc Chat history
+const getSessionMessages = async (req, res) => {
+  try {
+    const session = await LiveSession.findById(req.params.id);
+    if (!session) return res.status(404).json({ message: 'Live session not found' });
+    const user = await loadUserWithProgress(req.user._id);
+    if (!canViewSession(user, session)) {
+      return res.status(403).json({ message: 'Not allowed' });
+    }
+    const messages = await SessionMessage.find({ session: session._id })
+      .sort({ createdAt: -1 })
+      .limit(200)
+      .populate('sender', 'name')
+      .lean();
+    res.json(messages.reverse());
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc Recording marker (hook LiveKit egress + S3 in production)
+const startSessionRecording = async (req, res) => {
+  try {
+    const session = await LiveSession.findById(req.params.id);
+    if (!session) return res.status(404).json({ message: 'Live session not found' });
+    if (!canTeachSession(req.user, session)) {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+    if (session.activeRecording) {
+      return res.status(400).json({ message: 'Recording already active' });
+    }
+
+    const rec = await SessionRecording.create({
+      session: session._id,
+      roomId: session.roomId,
+      startedBy: req.user._id,
+      status: 'active',
+      egressId: '',
+    });
+    session.activeRecording = rec._id;
+    await session.save();
+
+    emitToLive(attachIO(req), session.roomId, 'recording:state', { active: true });
+
+    res.status(201).json({
+      recording: rec,
+      note:
+        'Configure LiveKit Egress + cloud storage to capture composite video. This record is metadata-only until egress is wired.',
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const stopSessionRecording = async (req, res) => {
+  try {
+    const session = await LiveSession.findById(req.params.id);
+    if (!session) return res.status(404).json({ message: 'Live session not found' });
+    if (!canTeachSession(req.user, session)) {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+    if (!session.activeRecording) {
+      return res.status(400).json({ message: 'No active recording' });
+    }
+    const rec = await SessionRecording.findById(session.activeRecording);
+    if (rec) {
+      rec.status = 'completed';
+      await rec.save();
+    }
+    session.activeRecording = null;
+    await session.save();
+
+    emitToLive(attachIO(req), session.roomId, 'recording:state', { active: false });
+
+    res.json({ ok: true });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+module.exports = {
+  createLiveSession,
+  getLiveSessions,
+  getLiveSessionById,
+  updateLiveSessionStatus,
+  updateLiveSessionMeta,
+  getLiveKitToken,
+  joinWaitingRoom,
+  admitWaitingUser,
+  getSessionMessages,
+  startSessionRecording,
+  stopSessionRecording,
+};
