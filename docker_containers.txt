@@ -1,0 +1,6 @@
+CONTAINER ID   IMAGE                           COMMAND                  CREATED         STATUS                            PORTS                                             NAMES
+33af4893ae72   project-frontend                "/docker-entrypoint.…"   6 minutes ago   Up 6 minutes (healthy)            0.0.0.0:80->80/tcp, [::]:80->80/tcp               video-conferencing-frontend
+1ba196a5a20c   project-backend                 "docker-entrypoint.s…"   6 minutes ago   Up 2 seconds (health: starting)   0.0.0.0:5001->5001/tcp, [::]:5001->5001/tcp       video-conferencing-backend
+e68830831f3e   livekit/livekit-server:latest   "/livekit-server"        6 minutes ago   Restarting (0) 30 seconds ago                                                       video-conferencing-livekit
+9478549bddd3   redis:7-alpine                  "docker-entrypoint.s…"   6 minutes ago   Up 6 minutes                      0.0.0.0:6379->6379/tcp, [::]:6379->6379/tcp       video-conferencing-redis
+c5df715e5f97   mongo:7-jammy                   "docker-entrypoint.s…"   6 minutes ago   Up 6 minutes                      0.0.0.0:27017->27017/tcp, [::]:27017->27017/tcp   video-conferencing-mongo

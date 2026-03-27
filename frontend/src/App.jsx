@@ -1,9 +1,11 @@
 import React from 'react';
 import { Routes, Route } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import PageMotionLayout from './components/layout/PageMotionLayout';
 import CursorGlow from './components/effects/CursorGlow';
+import ErrorBoundary from './components/ErrorBoundary';
 import Home from './pages/Home';
 import Courses from './pages/Courses';
 import Dashboard from './pages/Dashboard';
@@ -18,14 +20,17 @@ import Pricing from './pages/Pricing';
 
 function App() {
   return (
-    <div className="min-h-screen flex flex-col relative">
-      <CursorGlow />
-      <Navbar />
-      <main className="flex-1 w-full">
-        <Routes>
-          <Route element={<PageMotionLayout />}>
-            <Route path="/" element={<Home />} />
-            <Route path="/courses" element={<Courses />} />
+    <ErrorBoundary>
+      <Toaster position="top-right" reverseOrder={false} />
+      <div className="min-h-screen flex flex-col relative">
+        <CursorGlow />
+        <Navbar />
+        <main className="flex-1 w-full">
+          <Routes>
+            <Route element={<PageMotionLayout />}>
+              <Route path="/" element={<Home />} />
+              <Route path="/courses" element={<Courses />} />
+            </Route>
             <Route path="/events" element={<LiveConcerts />} />
             <Route path="/practice" element={<PracticeRoom />} />
             <Route path="/pricing" element={<Pricing />} />
@@ -36,11 +41,12 @@ function App() {
             <Route path="/live-class" element={<LiveClass />} />
             <Route path="/live/:roomId" element={<LiveClass />} />
             <Route path="/classroom/:sessionId" element={<LiveSessionPage />} />
-          </Route>
-        </Routes>
-      </main>
-      <Footer />
-    </div>
+            <Route path="*" element={<Home />} />
+          </Routes>
+        </main>
+        <Footer />
+      </div>
+    </ErrorBoundary>
   );
 }
 

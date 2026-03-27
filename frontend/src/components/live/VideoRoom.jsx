@@ -7,6 +7,7 @@ import Controls from './Controls';
 import ChatPanel from './ChatPanel';
 import ParticipantsPanel from './ParticipantsPanel';
 import WhiteboardPanel from './WhiteboardPanel';
+import RecordingsPanel from './RecordingsPanel';
 
 export default function VideoRoom({
   session,
@@ -21,9 +22,12 @@ export default function VideoRoom({
   recordingOn,
   onToggleRecording,
   reactionPopup,
+  layout = 'grid',
+  onLayoutChange,
 }) {
   const [rightPanel, setRightPanel] = useState('chat');
   const [pinnedIdentity, setPinnedIdentity] = useState(null);
+  const [handRaised, setHandRaised] = useState(false);
 
   const speakers = useSpeakingParticipants();
   const speakingSet = useMemo(() => new Set(speakers.map((p) => p.identity)), [speakers]);
@@ -57,14 +61,41 @@ export default function VideoRoom({
     return list;
   }, [tracks, effectivePin]);
 
-  const gridClass =
-    sorted.length <= 1
+  const gridClass = useMemo(() => {
+    if (layout === 'speaker') {
+      // Speaker layout: main speaker large, others small grid
+      return sorted.length <= 1
+        ? 'grid-cols-1'
+        : 'grid-cols-1 lg:grid-cols-4 lg:grid-rows-2';
+    }
+    // Grid layout
+    return sorted.length <= 1
       ? 'grid-cols-1'
       : sorted.length === 2
         ? 'grid-cols-1 sm:grid-cols-2'
         : sorted.length <= 4
           ? 'grid-cols-2'
           : 'grid-cols-2 lg:grid-cols-3';
+  }, [sorted.length, layout]);
+
+  const handleRaiseHand = () => {
+    const newRaised = !handRaised;
+    setHandRaised(newRaised);
+    socket?.emit('hand:raise', { roomId });
+  };
+
+  const getTileClass = (index, trackRef) => {
+    if (layout === 'speaker') {
+      if (index === 0 && trackRef.source !== Track.Source.ScreenShare) {
+        // Main speaker
+        return 'col-span-1 lg:col-span-3 lg:row-span-2';
+      }
+      // Other participants
+      return 'col-span-1';
+    }
+    // Grid layout
+    return trackRef.source === Track.Source.ScreenShare ? 'sm:col-span-2' : '';
+  };
 
   return (
     <div className="relative flex flex-col h-[100dvh] bg-ink text-ivory overflow-hidden">
@@ -98,7 +129,7 @@ export default function VideoRoom({
           </AnimatePresence>
 
           <div className={`grid gap-3 flex-1 min-h-0 overflow-y-auto ${gridClass}`}>
-            {sorted.map((trackRef) => {
+            {sorted.map((trackRef, index) => {
               if (!trackRef?.participant) return null;
               const id = trackRef.participant.identity;
               const isScreen = trackRef.source === Track.Source.ScreenShare;
@@ -114,7 +145,8 @@ export default function VideoRoom({
                     setPinnedIdentity(next || null);
                     onSpotlightMeta?.(next);
                   }}
-                  className={isScreen ? 'sm:col-span-2' : ''}
+                  className={getTileClass(index, trackRef)}
+                  isMainSpeaker={layout === 'speaker' && index === 0 && !isScreen}
                 />
               );
             })}
@@ -128,6 +160,10 @@ export default function VideoRoom({
               recordingOn={recordingOn}
               onToggleRecording={onToggleRecording}
               onLeave={onLeave}
+              layout={layout}
+              onLayoutChange={onLayoutChange}
+              onRaiseHand={handleRaiseHand}
+              handRaised={handRaised}
             />
           </div>
         </main>
@@ -135,7 +171,7 @@ export default function VideoRoom({
         {rightPanel !== 'hidden' && (
           <aside className="w-full sm:w-[340px] lg:w-[380px] shrink-0 border-l border-gold/15 flex flex-col bg-background-dark/95 min-h-0 max-h-[100dvh]">
             <div className="flex border-b border-gold/15 text-[11px] font-semibold uppercase tracking-wider">
-              {['chat', 'people', 'board'].map((tab) => (
+              {['chat', 'people', 'board', ...(isHost ? ['recordings'] : [])].map((tab) => (
                 <button
                   key={tab}
                   type="button"
@@ -174,6 +210,9 @@ export default function VideoRoom({
               )}
               {rightPanel === 'board' && (
                 <WhiteboardPanel socket={socket} roomId={roomId} isHost={isHost} readOnly={!isHost} />
+              )}
+              {rightPanel === 'recordings' && (
+                <RecordingsPanel sessionId={session._id} isHost={isHost} />
               )}
             </div>
           </aside>

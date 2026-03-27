@@ -14,6 +14,7 @@ export default function VideoTile({
   onTogglePin,
   showPin,
   className = '',
+  isMainSpeaker = false,
 }) {
   if (!trackRef?.participant) return null;
 
@@ -23,9 +24,9 @@ export default function VideoTile({
   return (
     <motion.div
       layout
-      className={`relative rounded-xl overflow-hidden border bg-ink/90 ${
+      className={`relative rounded-xl overflow-hidden border bg-ink/90 transition-all duration-300 ${
         isSpeaking ? 'border-gold shadow-glow-sm ring-1 ring-gold/40' : 'border-gold/15'
-      } ${isPinned ? 'ring-2 ring-gold' : ''} ${className}`}
+      } ${isPinned ? 'ring-2 ring-gold' : ''} ${isMainSpeaker ? 'ring-2 ring-gold shadow-2xl' : ''} ${className}`}
     >
       <VideoTrack trackRef={trackRef} className="w-full h-full object-cover aspect-video bg-black" />
 
@@ -33,6 +34,7 @@ export default function VideoTile({
         <div className="flex items-center gap-2 min-w-0 text-xs text-ivory/90 truncate">
           {isScreen && <Monitor className="w-3.5 h-3.5 text-gold shrink-0" />}
           <span className="truncate font-medium">{isScreen ? 'Screen share' : name}</span>
+          {isMainSpeaker && <span className="text-gold text-[10px] font-bold">SPEAKER</span>}
         </div>
         {showPin && !isScreen && (
           <button

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
+import { PremiumButton } from './PremiumButton';
 import { LogOut, User, Zap, Menu, X } from 'lucide-react';
 import API from '../services/api';
 import { motion, AnimatePresence } from 'framer-motion';

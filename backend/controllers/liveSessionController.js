@@ -7,7 +7,8 @@ const {
   canViewSession,
   loadUserWithProgress,
 } = require('../utils/liveSessionAccess');
-const livekit = require('../services/livekitService');
+const { createLivekitToken, removeParticipant, muteParticipant, isLivekitConfigured } = require('../services/livekitService');
+const axios = require('axios');
 
 const populateTeacher = { path: 'teacher', select: 'name email role' };
 const populateCourse = { path: 'course', select: 'title instructor' };
@@ -23,6 +24,31 @@ function emitToUser(io, userId, event, payload) {
   if (!io) return;
   io.of('/live').to(`user:${userId}`).emit(event, payload);
 }
+const isLivekitConfiguredLocal = () => {
+  return !!(process.env.LIVEKIT_API_KEY && process.env.LIVEKIT_API_SECRET);
+}
+
+// @desc Health check for LiveKit server
+const checkLiveKitHealth = async (req, res) => {
+  const host = process.env.LIVEKIT_HTTP_URL || 'http://127.0.0.1:7880';
+  try {
+    // LiveKit server returns "OK" at the root path
+    const { data } = await axios.get(`${host}/`, { timeout: 2000 });
+    if (data === 'OK' || data === 'ok' || data?.status === 'ok') {
+      return res.json({ status: 'ok', configured: isLivekitConfiguredLocal() });
+    }
+    // Some versions might have /health
+    await axios.get(`${host}/health`, { timeout: 2000 });
+    res.json({ status: 'ok', configured: isLivekitConfiguredLocal() });
+  } catch (error) {
+    console.error('[Health] LiveKit unreachable:', host, error.message);
+    res.status(503).json({ 
+      status: 'unreachable', 
+      host,
+      message: 'LiveKit media server is down or misconfigured' 
+    });
+  }
+};
 
 // @desc Create session (instructor)
 const createLiveSession = async (req, res) => {
@@ -120,7 +146,49 @@ const updateLiveSessionStatus = async (req, res) => {
     if (!['scheduled', 'live', 'ended', 'pending'].includes(status)) {
       return res.status(400).json({ message: 'Invalid status' });
     }
+
+    const previousStatus = session.status;
     session.status = status === 'pending' ? 'scheduled' : status;
+
+    // If ending the session, create meeting history
+    if (status === 'ended' && previousStatus === 'live') {
+      const MeetingHistory = require('../models/MeetingHistory');
+      const SessionMessage = require('../models/SessionMessage');
+
+      const messages = await SessionMessage.countDocuments({ session: session._id });
+      const raisedHands = session.participants.filter(p => p.raisedHand).length;
+
+      const history = new MeetingHistory({
+        session: session._id,
+        roomId: session.roomId,
+        title: session.title,
+        teacher: session.teacher,
+        participants: session.participants.map(p => ({
+          user: p.user,
+          identity: p.identity,
+          name: p.name,
+          joinedAt: p.joinedAt,
+          role: p.role,
+          duration: Math.floor((Date.now() - new Date(p.joinedAt).getTime()) / 1000),
+        })),
+        startedAt: session.updatedAt, // Approximate start time
+        endedAt: new Date(),
+        duration: Math.floor((Date.now() - session.updatedAt.getTime()) / 1000),
+        recordings: session.activeRecording ? [session.activeRecording] : [],
+        totalParticipants: session.participants.length,
+        peakParticipants: session.participants.length, // Simplified
+        chatMessages: messages,
+        raisedHands,
+        settings: {
+          waitingRoomEnabled: session.waitingRoomEnabled,
+          locked: session.locked,
+          recordingEnabled: session.settings?.recordingEnabled || false,
+        },
+      });
+
+      await history.save();
+    }
+
     await session.save();
     emitToLive(attachIO(req), session.roomId, 'session:status', { status: session.status });
     res.json(session);
@@ -162,11 +230,13 @@ const getLiveKitToken = async (req, res) => {
     if (!session) return res.status(404).json({ message: 'Live session not found' });
 
     const user = await loadUserWithProgress(req.user._id);
-    if (!canAccessSession(user, session)) {
-      return res.status(403).json({ message: 'Not enrolled or session locked/ended' });
-    }
-
     const isTeacher = canTeachSession(user, session);
+
+    // A teacher should always be able to access their own session.
+    // For students, they must be enrolled.
+    if (!isTeacher && !canAccessSession(user, session)) {
+      return res.status(403).json({ message: 'Not enrolled in the session course' });
+    }
 
     if (!isTeacher && session.status !== 'live') {
       return res.status(403).json({ code: 'NOT_LIVE', message: 'The class is not live yet.' });
@@ -180,19 +250,39 @@ const getLiveKitToken = async (req, res) => {
     }
 
     const identity = `uid:${user._id.toString()}`;
-    const token = livekit.createParticipantToken(identity, user.name, session.roomId, {
-      canPublish: true,
-    });
+    const token = await createLivekitToken(session.roomId, identity);
+
+    // Track participant in session
+    const existingParticipant = session.participants.find((p) => p.identity === identity);
+    if (!existingParticipant) {
+      session.participants.push({
+        identity,
+        user: user._id,
+        name: user.name,
+        role: isTeacher ? 'host' : 'participant',
+        permissions: {
+          canPublishAudio: true,
+          canPublishVideo: true,
+          canPublishData: session.settings?.allowChat !== false,
+          muted: false,
+          videoMuted: false,
+        },
+        joinedAt: new Date(),
+        raisedHand: false,
+      });
+      await session.save();
+    }
 
     res.json({
       token,
-      url: livekit.getWsUrl(),
+      url: process.env.LIVEKIT_URL || 'ws://localhost:7880',
       roomName: session.roomId,
       identity,
       isTeacher,
-      livekitConfigured: livekit.isConfigured(),
+      livekitConfigured: isLivekitConfigured(),
     });
   } catch (error) {
+    console.error('Error in getLiveKitToken:', error);
     const code = error.statusCode || 500;
     res.status(code).json({ message: error.message });
   }
@@ -354,4 +444,5 @@ module.exports = {
   getSessionMessages,
   startSessionRecording,
   stopSessionRecording,
+  checkLiveKitHealth,
 };

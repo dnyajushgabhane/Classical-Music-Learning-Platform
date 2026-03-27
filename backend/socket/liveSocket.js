@@ -9,25 +9,52 @@ const livekit = require('../services/livekitService');
 function initLiveSocket(io) {
   const nsp = io.of('/live');
 
-  nsp.use((socket, next) => {
-    (async () => {
-      try {
-        const token = socket.handshake.auth?.token;
-        if (!token) throw new Error('Missing token');
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const user = await User.findById(decoded.id).select('-password');
-        if (!user) throw new Error('User not found');
-        socket.user = user;
-        socket.userId = user._id.toString();
-        next();
-      } catch (err) {
-        next(new Error('Unauthorized'));
+  nsp.use(async (socket, next) => {
+    try {
+      let token = socket.handshake.auth?.token;
+
+      // Also check cookies if token is not in auth object
+      if (!token && socket.handshake.headers.cookie) {
+        const cookies = socket.handshake.headers.cookie.split(';').reduce((acc, cookie) => {
+          const [key, value] = cookie.trim().split('=');
+          acc[key] = value;
+          return acc;
+        }, {});
+        token = cookies.token;
       }
-    })();
+
+      console.log(`[Socket] Auth attempt for socket ${socket.id}`);
+      
+      if (!token) {
+        console.warn(`[Socket] Missing token for socket ${socket.id}`);
+        return next(new Error('Missing token'));
+      }
+
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const user = await User.findById(decoded.id).select('-password');
+      
+      if (!user) {
+        console.warn(`[Socket] User not found for ID ${decoded.id}`);
+        return next(new Error('User not found'));
+      }
+
+      socket.user = user;
+      socket.userId = user._id.toString();
+      console.log(`[Socket] User ${user.email} authenticated successfully`);
+      next();
+    } catch (err) {
+      console.error(`[Socket] Auth Error for socket ${socket.id}: ${err.message}`);
+      next(new Error('Unauthorized'));
+    }
   });
 
   nsp.on('connection', (socket) => {
+    console.log(`[Socket] New connection: ${socket.id} (User: ${socket.user.email})`);
     socket.join(`user:${socket.userId}`);
+
+    socket.on('disconnect', (reason) => {
+      console.log(`[Socket] Disconnected: ${socket.id} (Reason: ${reason})`);
+    });
 
     socket.on('room:join', async ({ roomId }, cb) => {
       try {
@@ -39,10 +66,18 @@ function initLiveSocket(io) {
         socket.sessionDbId = session._id.toString();
         socket.roomId = roomId;
         socket.join(roomId);
+
+        // Update participant tracking
+        const identity = `uid:${socket.userId}`;
+        const existingParticipant = session.participants.find(p => p.identity === identity);
+        if (existingParticipant) {
+          existingParticipant.joinedAt = new Date();
+        }
+
         nsp.to(roomId).emit('participant:joined', {
           userId: socket.userId,
           name: socket.user.name,
-          identity: `uid:${socket.userId}`,
+          identity,
         });
         cb?.({ ok: true });
       } catch (e) {
@@ -127,35 +162,79 @@ function initLiveSocket(io) {
     );
 
     socket.on('hand:raise', async ({ roomId }) => {
-      const session = await LiveSession.findOne({ roomId });
-      if (!session || !canAccessSession(await loadUserWithProgress(socket.user._id), session)) return;
-      nsp.to(roomId).emit('hand:raised', {
-        userId: socket.userId,
-        name: socket.user.name,
-      });
+      try {
+        const session = await LiveSession.findOne({ roomId });
+        if (!session || !canAccessSession(await loadUserWithProgress(socket.user._id), session)) return;
+
+        if (!session.settings.allowRaiseHand) return;
+
+        const identity = `uid:${socket.userId}`;
+        const participant = session.participants.find(p => p.identity === identity);
+        if (participant) {
+          participant.raisedHand = !participant.raisedHand;
+          participant.raisedAt = participant.raisedHand ? new Date() : null;
+          await session.save();
+        }
+
+        nsp.to(roomId).emit('hand:raised', {
+          userId: socket.userId,
+          name: socket.user.name,
+          identity,
+          raised: participant?.raisedHand || false,
+        });
+      } catch (e) {
+        // Suppress errors
+      }
+    });
+
+    socket.on('hand:lower', async ({ roomId, targetIdentity }) => {
+      try {
+        const session = await assertHost(roomId);
+        const participant = session.participants.find(p => p.identity === targetIdentity);
+        if (participant) {
+          participant.raisedHand = false;
+          participant.raisedAt = null;
+          await session.save();
+        }
+        nsp.to(roomId).emit('hand:lowered', { identity: targetIdentity });
+      } catch (e) {
+        socket.emit('host:error', { message: e.message });
+      }
     });
 
     socket.on('reaction', async ({ roomId, emoji }) => {
-      if (!emoji || emoji.length > 8) return;
-      const session = await LiveSession.findOne({ roomId });
-      if (!session || !canAccessSession(await loadUserWithProgress(socket.user._id), session)) return;
-      nsp.to(roomId).emit('reaction', {
-        userId: socket.userId,
-        name: socket.user.name,
-        emoji,
-        ts: Date.now(),
-      });
+      try {
+        if (!emoji || emoji.length > 8) return;
+        const session = await LiveSession.findOne({ roomId });
+        if (!session || !canAccessSession(await loadUserWithProgress(socket.user._id), session)) return;
+        nsp.to(roomId).emit('reaction', {
+          userId: socket.userId,
+          name: socket.user.name,
+          emoji,
+          ts: Date.now(),
+        });
+      } catch (e) {
+        // Suppress errors
+      }
     });
 
     socket.on('whiteboard:stroke', ({ roomId, stroke }) => {
-      if (!stroke) return;
-      nsp.to(roomId).emit('whiteboard:stroke', { stroke, from: socket.userId });
+      try {
+        if (!stroke) return;
+        nsp.to(roomId).emit('whiteboard:stroke', { stroke, from: socket.userId });
+      } catch (e) {
+        // Suppress errors
+      }
     });
 
     socket.on('whiteboard:clear', async ({ roomId }) => {
-      const session = await LiveSession.findOne({ roomId });
-      if (!session || !canTeachSession(socket.user, session)) return;
-      nsp.to(roomId).emit('whiteboard:clear', {});
+      try {
+        const session = await LiveSession.findOne({ roomId });
+        if (!session || !canTeachSession(socket.user, session)) return;
+        nsp.to(roomId).emit('whiteboard:clear', {});
+      } catch (e) {
+        // Suppress errors
+      }
     });
 
     async function assertHost(roomId) {
@@ -205,10 +284,25 @@ function initLiveSocket(io) {
       }
     });
 
-    socket.on('disconnecting', () => {
-      const rooms = [...socket.rooms].filter((r) => r !== socket.id && !r.startsWith('user:'));
-      if (rooms.length && socket.roomId) {
-        nsp.to(socket.roomId).emit('participant:left', { userId: socket.userId });
+    socket.on('disconnecting', async () => {
+      try {
+        const rooms = [...socket.rooms].filter((r) => r !== socket.id && !r.startsWith('user:'));
+        if (rooms.length > 0 && socket.roomId) {
+          const roomId = socket.roomId;
+          nsp.to(roomId).emit('participant:left', { userId: socket.userId });
+
+          const session = await LiveSession.findOne({ roomId });
+          if (session) {
+            const identity = `uid:${socket.userId}`;
+            const participant = session.participants.find((p) => p.identity === identity);
+            if (participant) {
+              participant.leftAt = new Date();
+              await session.save();
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Error in disconnecting handler:', e.message);
       }
     });
   });

@@ -15,7 +15,7 @@ const InstructorDashboard = () => {
   const [liveStart, setLiveStart] = useState('');
 
   const { data: courses, isLoading } = useQuery({
-    queryKey: ['instructor-courses', userInfo._id],
+    queryKey: ['instructor-courses', userInfo?._id],
     queryFn: () => fetchCourses({ instructor: userInfo._id }),
     enabled: !!userInfo?._id,
   });

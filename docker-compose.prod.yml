@@ -1,0 +1,115 @@
+version: '3.8'
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:7-jammy
+    container_name: raagvidya-mongo-prod
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASS}
+      MONGO_INITDB_DATABASE: raagvidya
+    volumes:
+      - mongodb_prod_data:/data/db
+    networks:
+      - raagvidya-prod
+    # Remove external ports in production
+
+  # Redis for caching
+  redis:
+    image: redis:7-alpine
+    container_name: raagvidya-redis-prod
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redis_prod_data:/data
+    networks:
+      - raagvidya-prod
+
+  # LiveKit SFU Server
+  livekit:
+    image: livekit/livekit-server:latest
+    container_name: raagvidya-livekit-prod
+    restart: unless-stopped
+    environment:
+      LIVEKIT_KEYS: "${LIVEKIT_API_KEY}:${LIVEKIT_API_SECRET}"
+      LIVEKIT_REDIS: "redis://redis:6379"
+      LIVEKIT_RTC_TCP_PORT: 7881
+      LIVEKIT_RTC_UDP_PORT: 5004
+      LIVEKIT_HTTP_PORT: 7880
+      LIVEKIT_NODE_IP: "livekit"
+      LIVEKIT_REGION: "us-west-2"
+    depends_on:
+      - redis
+    networks:
+      - raagvidya-prod
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: raagvidya-backend-prod
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 5001
+      MONGODB_URI: mongodb://${MONGO_ROOT_USER}:${MONGO_ROOT_PASS}@mongodb:27017/raagvidya?authSource=admin
+      JWT_SECRET: ${JWT_SECRET}
+      CLIENT_ORIGIN: ${CLIENT_ORIGIN}
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY}
+      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET}
+      LIVEKIT_URL: ws://livekit:7881
+      LIVEKIT_HTTP_URL: http://livekit:7880
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      EMAIL_SERVICE: ${EMAIL_SERVICE}
+      EMAIL_USER: ${EMAIL_USER}
+      EMAIL_PASS: ${EMAIL_PASS}
+    depends_on:
+      - mongodb
+      - redis
+      - livekit
+    networks:
+      - raagvidya-prod
+    volumes:
+      - ./backend/uploads:/app/uploads
+
+  # Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: raagvidya-frontend-prod
+    restart: unless-stopped
+    environment:
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL}
+    depends_on:
+      - backend
+    networks:
+      - raagvidya-prod
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: raagvidya-nginx-prod
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/prod.conf:/etc/nginx/conf.d/default.conf
+      - ./ssl:/etc/ssl/certs
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - raagvidya-prod
+
+volumes:
+  mongodb_prod_data:
+  redis_prod_data:
+
+networks:
+  raagvidya-prod:
+    driver: bridge

@@ -1,0 +1,111 @@
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:7-jammy
+    container_name: video-conferencing-mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password123
+      MONGO_INITDB_DATABASE: video_conferencing
+    volumes:
+      - mongodb_data:/data/db
+    ports:
+      - "27017:27017"
+    networks:
+      - video-conferencing
+
+  # Redis
+  redis:
+    image: redis:7-alpine
+    container_name: video-conferencing-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - video-conferencing
+
+  # LiveKit Server
+  livekit:
+    image: livekit/livekit-server:latest
+    container_name: video-conferencing-livekit
+    restart: unless-stopped
+    environment:
+      LIVEKIT_KEYS: "devkey: devsecret_classical_music_learning_32chars"
+      LIVEKIT_REDIS: "redis://redis:6379"
+      LIVEKIT_RTC_TCP_PORT: 7881
+      LIVEKIT_RTC_UDP_PORT: 5004
+      LIVEKIT_HTTP_PORT: 7880
+      LIVEKIT_NODE_IP: "127.0.0.1"
+    ports:
+      - "7880:7880"
+      - "7881:7881"
+      - "5004:5004/udp"
+    depends_on:
+      - redis
+    networks:
+      - video-conferencing
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: video-conferencing-backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 5001
+      MONGO_URI: mongodb://admin:password123@mongodb:27017/video_conferencing?authSource=admin
+      JWT_SECRET: supersecretjwtkey_classical_music
+      CLIENT_ORIGIN: http://localhost
+      LIVEKIT_API_KEY: devkey
+      LIVEKIT_API_SECRET: devsecret_classical_music_learning_32chars
+      LIVEKIT_URL: ws://127.0.0.1:7880
+      LIVEKIT_HTTP_URL: http://livekit:7880
+      LIVEKIT_HOST: http://livekit:7880
+      REDIS_URL: redis://redis:6379
+    ports:
+      - "5001:5001"
+    depends_on:
+      - mongodb
+      - redis
+      - livekit
+    networks:
+      - video-conferencing
+    volumes:
+      - ./backend/uploads:/app/uploads
+
+    # ✅ HEALTHCHECK
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:5001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: video-conferencing-frontend
+    restart: unless-stopped
+    environment:
+      VITE_API_BASE_URL: /api
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - video-conferencing
+
+volumes:
+  mongodb_data:
+  redis_data:
+
+networks:
+  video-conferencing:
+    driver: bridge

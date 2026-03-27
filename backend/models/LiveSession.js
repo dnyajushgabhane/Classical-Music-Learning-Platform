@@ -52,6 +52,35 @@ const liveSessionSchema = new mongoose.Schema(
       default: null,
     },
     spotlightIdentity: { type: String, default: '' },
+    /** Participant permissions and raised hands */
+    participants: [{
+      identity: String,
+      user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      name: String,
+      role: {
+        type: String,
+        enum: ['host', 'moderator', 'participant'],
+        default: 'participant',
+      },
+      permissions: {
+        canPublishAudio: { type: Boolean, default: true },
+        canPublishVideo: { type: Boolean, default: true },
+        canPublishData: { type: Boolean, default: true },
+        muted: { type: Boolean, default: false },
+        videoMuted: { type: Boolean, default: false },
+      },
+      joinedAt: { type: Date, default: Date.now },
+      raisedHand: { type: Boolean, default: false },
+      raisedAt: { type: Date, default: null },
+    }],
+    /** Meeting settings */
+    settings: {
+      allowRaiseHand: { type: Boolean, default: true },
+      allowChat: { type: Boolean, default: true },
+      allowScreenShare: { type: Boolean, default: true },
+      maxParticipants: { type: Number, default: 50 },
+      recordingEnabled: { type: Boolean, default: false },
+    },
   },
   { timestamps: true }
 );

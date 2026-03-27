@@ -1,13 +1,18 @@
-const raw = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+// We use relative paths for API calls to proxy them correctly via Nginx (in prod/docker) or Vite (in local dev)
+export const API_BASE = '/api';
 
-export const API_BASE = raw;
-
-/** Socket.io & LiveKit token API live on same host as API */
+/**
+ * Socket.io and backend API are served on the same host natively, 
+ * accessed securely via Nginx or Vite Proxy using the current origin.
+ */
 export function getSocketOrigin() {
-  try {
-    const u = new URL(API_BASE);
-    return `${u.protocol}//${u.host}`;
-  } catch {
-    return 'http://localhost:5000';
+  if (typeof window !== 'undefined') {
+    return window.location.origin;
   }
+  return '';
+}
+
+export function getLiveKitURL(backendProvidedUrl) {
+  if (backendProvidedUrl) return backendProvidedUrl;
+  return import.meta.env.VITE_LIVEKIT_URL || 'ws://localhost:7881';
 }

@@ -5,7 +5,9 @@ import useAuthStore from '../store/authStore';
 import { Send, Hand, Users, Video } from 'lucide-react';
 import PageShell from '../components/layout/PageShell';
 
-const socket = io('http://localhost:5000');
+import { getSocketOrigin } from '../config/env';
+
+const socket = io(getSocketOrigin());
 
 const LiveClass = () => {
   const { roomId } = useParams();

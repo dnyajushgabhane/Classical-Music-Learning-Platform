@@ -1,7 +1,8 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import { Star } from 'lucide-react';
 import clsx from 'clsx';
+import { createCourseOrder, verifyCoursePayment } from '../services/api';
 
 function Rating({ value = 4.8 }) {
   return (
@@ -80,6 +81,74 @@ export default function CourseCard({ course, index = 0 }) {
 
   const rating = course.rating ?? 4.8;
   const thumb = course.thumbnail || 'https://images.unsplash.com/photo-1514320291840-2e0fef7de6c6?w=640&q=80';
+  const [isBuying, setIsBuying] = useState(false);
+  const [isPurchased, setIsPurchased] = useState(false);
+
+  const handleBuy = async () => {
+    if (isPurchased) {
+      return;
+    }
+
+    const userInfo = localStorage.getItem('userInfo');
+    if (!userInfo) {
+      alert('Please login to purchase this course.');
+      return;
+    }
+
+    try {
+      setIsBuying(true);
+      const order = await createCourseOrder(course._id);
+
+      if (!window.Razorpay) {
+        alert('Razorpay checkout is not loaded. Please try again later.');
+        return;
+      }
+
+      const { name, email } = JSON.parse(userInfo);
+      const options = {
+        key: order.key,
+        amount: order.amount,
+        currency: order.currency,
+        name: course.title,
+        description: `Premium course access for ${course.title}`,
+        order_id: order.orderId,
+        prefill: {
+          name: name || '',
+          email: email || '',
+        },
+        theme: {
+          color: '#D9A600',
+        },
+        handler: async (response) => {
+          try {
+            await verifyCoursePayment({
+              courseId: course._id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_signature: response.razorpay_signature,
+            });
+            setIsPurchased(true);
+            alert('Payment successful! Premium course access granted.');
+          } catch (error) {
+            console.error(error);
+            alert('Payment verification failed. Please contact support.');
+          }
+        },
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+      rzp.on('payment.failed', function (response) {
+        console.error('Payment failed', response);
+        alert('Payment failed. Please try again.');
+      });
+    } catch (error) {
+      console.error(error);
+      alert('Order creation failed. Please try again.');
+    } finally {
+      setIsBuying(false);
+    }
+  };
 
   return (
     <div className="perspective-dramatic h-full">
@@ -130,6 +199,20 @@ export default function CourseCard({ course, index = 0 }) {
             <span className="text-xs uppercase tracking-widest text-ivory/40">Enrollment</span>
             <span className="text-2xl font-display font-semibold text-gradient-gold">₹{course.price}</span>
           </div>
+          {course.isPremium && (
+            <button
+              onClick={handleBuy}
+              disabled={isBuying || isPurchased}
+              className={clsx(
+                'mt-3 w-full rounded-lg text-sm font-semibold py-2 transition-all',
+                isPurchased
+                  ? 'bg-green-600 text-white cursor-default'
+                  : 'bg-gold/80 text-ink hover:bg-gold-dark'
+              )}
+            >
+              {isPurchased ? 'Purchased' : isBuying ? 'Processing...' : 'Buy with Razorpay'}
+            </button>
+          )}
         </div>
       </div>
       </motion.article>

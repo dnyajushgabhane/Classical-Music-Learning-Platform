@@ -1,0 +1,6 @@
+CommandLine                                                                                                      ProcessId  
+"C:\Program Files\nodejs\node.exe" C:\Users\dnyaj\AppData\Roaming\npm/node_modules/npm/bin/npm-cli.js run start  13964      
+node  server.js                                                                                                  44680      
+"C:\Program Files\nodejs\node.exe" C:\Users\dnyaj\AppData\Roaming\npm/node_modules/npm/bin/npm-cli.js run dev    29532      
+"node"   "E:\project\frontend\node_modules\.bin\\..\vite\bin\vite.js"                                            39352      
+
