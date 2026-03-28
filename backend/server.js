@@ -45,9 +45,14 @@ app.use('/api/', apiLimiter);
 app.use('/api/auth/', authLimiter);
 
 
+const path = require('path');
+
 // 🧠 Body parser
 app.use(express.json({ limit: '10mb' }));
 app.use(cookieParser());
+
+// 📁 Static uploads folder
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 
 // 🌐 CORS (IMPORTANT for frontend)
@@ -78,12 +83,19 @@ app.get('/health', (req, res) => {
 });
 
 
+const instructorRoutes = require('./routes/instructorRoutes');
+const reviewRoutes = require('./routes/reviewRoutes');
+const sessionRoutes = require('./routes/sessionRoutes');
+
 // 🚀 API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/courses', courseRoutes);
 app.use('/api/events', eventRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/live-sessions', liveSessionRoutes);
+app.use('/api/instructor', instructorRoutes);
+app.use('/api/reviews', reviewRoutes);
+app.use('/api/sessions', sessionRoutes);
 
 
 // ❌ 404 handler

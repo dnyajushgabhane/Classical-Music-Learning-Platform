@@ -37,6 +37,13 @@ const userSchema = mongoose.Schema(
         },
         lastRiyaazDate: {
             type: Date
+        },
+        lastLoginAt: {
+            type: Date,
+        },
+        isDeleted: {
+            type: Boolean,
+            default: false,
         }
     },
     {
@@ -44,13 +51,15 @@ const userSchema = mongoose.Schema(
     }
 );
 
+userSchema.index({ role: 1, isDeleted: 1, lastLoginAt: -1 });
+
 userSchema.methods.matchPassword = async function (enteredPassword) {
     return await bcrypt.compare(enteredPassword, this.password);
 };
 
-userSchema.pre('save', async function (next) {
+userSchema.pre('save', async function () {
     if (!this.isModified('password')) {
-        return next();
+        return;
     }
 
     const salt = await bcrypt.genSalt(10);

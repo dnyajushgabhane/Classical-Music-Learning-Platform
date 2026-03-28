@@ -33,6 +33,7 @@ const registerUser = async (req, res) => {
         email,
         password,
         role: role || 'Student',
+        lastLoginAt: new Date(),
     });
 
     if (user) {
@@ -73,6 +74,9 @@ const authUser = async (req, res) => {
         console.log(`[Auth] Password match result for ${email}: ${isMatch}`);
 
         if (isMatch) {
+            user.lastLoginAt = new Date();
+            await user.save();
+
             const token = generateToken(user._id);
             console.log(`[Auth] Token generated for ${email}`);
             

@@ -36,6 +36,9 @@ const courseSchema = mongoose.Schema(
         thumbnail: {
             type: String,
         },
+        video: {
+            type: String,
+        },
         description: {
             type: String,
         },
@@ -64,11 +67,20 @@ const courseSchema = mongoose.Schema(
             required: true,
             default: 0,
         },
+        status: {
+            type: String,
+            required: true,
+            enum: ['active', 'archived'],
+            default: 'active',
+        },
     },
     {
         timestamps: true,
     }
 );
+
+courseSchema.index({ instructor: 1, rating: -1 });
+courseSchema.index({ createdAt: -1 });
 
 const Course = mongoose.model('Course', courseSchema);
 module.exports = Course;

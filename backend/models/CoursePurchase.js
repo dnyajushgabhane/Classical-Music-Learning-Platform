@@ -41,5 +41,9 @@ const coursePurchaseSchema = mongoose.Schema(
   }
 );
 
+coursePurchaseSchema.index({ course: 1, status: 1, createdAt: -1 });
+coursePurchaseSchema.index({ user: 1, status: 1 });
+coursePurchaseSchema.index({ createdAt: -1 });
+
 const CoursePurchase = mongoose.model('CoursePurchase', coursePurchaseSchema);
 module.exports = CoursePurchase;

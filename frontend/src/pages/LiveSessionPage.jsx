@@ -20,6 +20,7 @@ import {
   stopLiveRecording,
   admitLiveUser,
   checkLiveKitHealth,
+  joinScheduledSession,
 } from '../services/api';
 
 const MAX_RETRIES = 3;
@@ -139,7 +140,16 @@ export default function LiveSessionPage() {
     log(`Attempting connection (Retry: ${isRetry ? retryCount + 1 : 0})...`);
 
     try {
-      const data = await getLiveKitToken(sessionId);
+      const queryParams = new URLSearchParams(window.location.search);
+      const isMasterclass = queryParams.get('type') === 'masterclass';
+      
+      let data;
+      if (isMasterclass) {
+        data = await joinScheduledSession(sessionId);
+      } else {
+        data = await getLiveKitToken(sessionId);
+      }
+      
       const wsUrl = getLiveKitURL(data.url);
       
       log('Token received successfully', { 

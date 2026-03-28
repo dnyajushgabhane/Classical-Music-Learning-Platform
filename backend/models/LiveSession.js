@@ -22,6 +22,15 @@ const liveSessionSchema = new mongoose.Schema(
       ref: 'Course',
       default: null,
     },
+    accessType: {
+      type: String,
+      enum: ['public', 'enrolled', 'private'],
+      default: 'public',
+    },
+    invitedUsers: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    }],
     status: {
       type: String,
       enum: ['pending', 'scheduled', 'live', 'ended'],

@@ -20,12 +20,13 @@ const getRazorpayInstance = () => {
 };
 
 const getCourses = async (req, res) => {
-    const { instrument, level, raag, mood, composer, q } = req.query;
+    const { instrument, level, raag, mood, composer, q, instructor } = req.query;
     let query = {};
     if (instrument) query.instrument = instrument;
     if (level) query.level = level;
     if (raag) query.raag = raag;
     if (mood) query.mood = mood;
+    if (instructor) query.instructor = instructor;
     if (composer) query.composer = { $regex: composer, $options: 'i' };
     if (q) {
         query.$or = [
@@ -198,25 +199,39 @@ const verifyCoursePayment = async (req, res) => {
 
 const createCourse = async (req, res) => {
     try {
-        const { title, price, category, instrument, level, raag, thumbnail, description, isPremium } = req.body;
+        const { title, price, category, instrument, level, raag, description, isPremium } = req.body;
+
+        let thumbnail = req.body.thumbnail || '';
+        let video = '';
+
+        if (req.files) {
+            if (req.files['thumbnail']) {
+                thumbnail = `/uploads/${req.files['thumbnail'][0].filename}`;
+            }
+            if (req.files['video']) {
+                video = `/uploads/${req.files['video'][0].filename}`;
+            }
+        }
 
         const course = new Course({
             title,
-            price,
+            price: price || 0,
             category,
             instrument,
             level,
             raag,
             thumbnail,
+            video,
             description,
-            isPremium,
+            isPremium: isPremium === 'true' || isPremium === true,
             instructor: req.user._id,
         });
 
         const createdCourse = await course.save();
         res.status(201).json(createdCourse);
     } catch (error) {
-        res.status(500).json({ message: 'Error creating course' });
+        console.error('Create course error:', error);
+        res.status(500).json({ message: 'Error creating course', error: error.message });
     }
 };
 

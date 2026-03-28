@@ -53,12 +53,22 @@ const checkLiveKitHealth = async (req, res) => {
 // @desc Create session (instructor)
 const createLiveSession = async (req, res) => {
   try {
-    const { title, description, course, scheduledStart, scheduledEnd, waitingRoomEnabled } = req.body;
+    const { title, description, course, scheduledStart, scheduledEnd, waitingRoomEnabled, accessType, invitedUsers, invitedEmails } = req.body;
+    
+    let userIdsFromEmails = [];
+    if (accessType === 'private' && Array.isArray(invitedEmails) && invitedEmails.length > 0) {
+      const User = require('../models/User');
+      const foundUsers = await User.find({ email: { $in: invitedEmails } }).select('_id');
+      userIdsFromEmails = foundUsers.map(u => u._id);
+    }
+
     const session = new LiveSession({
       title,
       description: description || '',
       teacher: req.user._id,
       course: course || null,
+      accessType: accessType || (course ? 'enrolled' : 'public'),
+      invitedUsers: [...(invitedUsers || []), ...userIdsFromEmails],
       scheduledStart: scheduledStart ? new Date(scheduledStart) : null,
       scheduledEnd: scheduledEnd ? new Date(scheduledEnd) : null,
       waitingRoomEnabled: waitingRoomEnabled !== false,
@@ -87,7 +97,14 @@ const getLiveSessions = async (req, res) => {
       const enrolledIds = (user.progress || []).map((p) => p.course).filter(Boolean);
       filter = {
         ...statusMatch,
-        $or: [{ course: null }, { course: { $in: enrolledIds } }],
+        $or: [
+          { accessType: 'public' },
+          { accessType: 'enrolled', course: { $in: enrolledIds } },
+          { accessType: 'private', invitedUsers: user._id },
+          // Backward compatibility for sessions created before accessType field
+          { accessType: { $exists: false }, course: { $in: enrolledIds } },
+          { accessType: { $exists: false }, course: null },
+        ],
       };
     }
 
@@ -232,10 +249,15 @@ const getLiveKitToken = async (req, res) => {
     const user = await loadUserWithProgress(req.user._id);
     const isTeacher = canTeachSession(user, session);
 
-    // A teacher should always be able to access their own session.
-    // For students, they must be enrolled.
+    // Access control verification
     if (!isTeacher && !canAccessSession(user, session)) {
-      return res.status(403).json({ message: 'Not enrolled in the session course' });
+      const reason = session.accessType === 'private' 
+        ? 'This is a private session (invite-only).' 
+        : session.accessType === 'enrolled' 
+        ? 'Not enrolled in the related course.' 
+        : 'You do not have permission to join this session.';
+        
+      return res.status(403).json({ message: reason });
     }
 
     if (!isTeacher && session.status !== 'live') {
