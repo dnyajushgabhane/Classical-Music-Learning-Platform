@@ -8,6 +8,9 @@ bin/
 obj/
 out/
 docker-compose.override.yml
+docker-compose.yml
+docker-compose.prod.yml
+Dockerfile
 *.log
 *.txt
 .DS_Store
@@ -17,4 +20,6 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .lock-wscript
-*.temp.*
+*.temp.*
+package-lock.json
+nginx/
