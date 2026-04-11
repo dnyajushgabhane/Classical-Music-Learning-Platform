@@ -125,8 +125,8 @@ const ScheduleMasterclassModal = ({ isOpen, onClose }) => {
             className="relative w-full max-w-[600px] max-h-[90vh] bg-ink border border-gold/20 rounded-2xl sm:rounded-3xl shadow-2xl overflow-y-auto pointer-events-auto flex flex-col"
           >
             {/* Sticky Header */}
-            <div className="sticky top-0 z-10 bg-ink/95 backdrop-blur-md px-6 py-4 flex justify-between items-center border-b border-gold/10">
-              <h2 className="text-xl sm:text-2xl font-display font-semibold text-ivory">Schedule Masterclass</h2>
+            <div className="sticky top-0 z-10 bg-rv-glass-nav backdrop-blur-md px-6 py-5 flex justify-between items-center border-b border-rv-border-subtle">
+              <h2 className="text-xl sm:text-2xl font-display font-semibold text-rv-text">Schedule Masterclass</h2>
               <button
                 type="button"
                 onClick={handleClose}
@@ -157,34 +157,34 @@ const ScheduleMasterclassModal = ({ isOpen, onClose }) => {
 
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-xs font-bold text-gold uppercase tracking-widest mb-1.5 ml-1">Title *</label>
+                      <label className="label-caps mb-2 block ml-1">Title *</label>
                       <input
                         required
                         type="text"
                         name="title"
                         value={formData.title}
                         onChange={handleInputChange}
-                        className="w-full bg-ink/50 border border-gold/15 rounded-xl px-4 py-3 text-ivory text-sm focus:border-gold/50 outline-none transition-colors"
+                        className="rv-input"
                         placeholder="e.g. Masterclass in Raag Bhairavi"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-gold uppercase tracking-widest mb-1.5 ml-1">Brief Description</label>
+                      <label className="label-caps mb-2 block ml-1">Brief Description</label>
                       <textarea
                         name="description"
                         value={formData.description}
                         onChange={handleInputChange}
                         rows={3}
-                        className="w-full bg-ink/50 border border-gold/15 rounded-xl px-4 py-3 text-ivory text-sm focus:border-gold/50 outline-none transition-colors resize-none"
+                        className="rv-input min-h-[100px] resize-none"
                         placeholder="What should students prepare for?"
                       />
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="flex items-center gap-2 text-xs font-bold text-gold uppercase tracking-widest mb-1.5 ml-1">
-                          <Calendar className="w-3 h-3" /> Date *
+                      <div className="flex-1">
+                        <label className="label-caps mb-2 flex items-center gap-2 ml-1">
+                          <Calendar className="w-3.5 h-3.5" /> Date *
                         </label>
                         <input
                           required
@@ -193,12 +193,12 @@ const ScheduleMasterclassModal = ({ isOpen, onClose }) => {
                           value={formData.scheduledDate}
                           onChange={handleInputChange}
                           min={new Date().toISOString().split('T')[0]}
-                          className="w-full bg-ink/50 border border-gold/15 rounded-xl px-4 py-3 text-ivory text-sm focus:border-gold/50 outline-none transition-colors"
+                          className="rv-input"
                         />
                       </div>
-                      <div>
-                        <label className="flex items-center gap-2 text-xs font-bold text-gold uppercase tracking-widest mb-1.5 ml-1">
-                          <Clock className="w-3 h-3" /> Time *
+                      <div className="flex-1">
+                        <label className="label-caps mb-2 flex items-center gap-2 ml-1">
+                          <Clock className="w-3.5 h-3.5" /> Time *
                         </label>
                         <input
                           required
@@ -206,7 +206,7 @@ const ScheduleMasterclassModal = ({ isOpen, onClose }) => {
                           name="scheduledTime"
                           value={formData.scheduledTime}
                           onChange={handleInputChange}
-                          className="w-full bg-ink/50 border border-gold/15 rounded-xl px-4 py-3 text-ivory text-sm focus:border-gold/50 outline-none transition-colors"
+                          className="rv-input"
                         />
                       </div>
                     </div>
@@ -296,7 +296,7 @@ const ScheduleMasterclassModal = ({ isOpen, onClose }) => {
                     <button
                       type="button"
                       onClick={handleClose}
-                      className="px-6 py-2.5 rounded-xl text-ivory/70 font-semibold hover:bg-gold/10 transition-colors"
+                      className="px-6 py-2.5 rounded-xl text-rv-text-muted font-semibold hover:bg-gold/5 transition-colors"
                     >
                       Wait, not yet
                     </button>

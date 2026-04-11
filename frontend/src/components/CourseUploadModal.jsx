@@ -35,7 +35,7 @@ const CourseUploadModal = ({ isOpen, onClose }) => {
 
   const handleClose = useCallback(() => {
     if (status === 'uploading') return;
-    
+
     // Reset state after animation finishes
     setTimeout(() => {
       setFormData({
@@ -52,7 +52,7 @@ const CourseUploadModal = ({ isOpen, onClose }) => {
       setProgress(0);
       setErrorMessage('');
     }, 300);
-    
+
     onClose();
   }, [status, onClose]);
 
@@ -60,13 +60,13 @@ const CourseUploadModal = ({ isOpen, onClose }) => {
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
-      
+
       const handleEscape = (e) => {
         if (e.key === 'Escape') {
           handleClose();
         }
       };
-      
+
       window.addEventListener('keydown', handleEscape);
       return () => {
         document.body.style.overflow = 'unset';
@@ -129,7 +129,7 @@ const CourseUploadModal = ({ isOpen, onClose }) => {
       payload.append('thumbnail', files.thumbnail);
     }
     if (files.video) {
-        payload.append('video', files.video);
+      payload.append('video', files.video);
     }
 
     setStatus('uploading');
@@ -144,7 +144,7 @@ const CourseUploadModal = ({ isOpen, onClose }) => {
 
       setStatus('success');
       queryClient.invalidateQueries({ queryKey: ['instructor-courses'] });
-      
+
       setTimeout(() => {
         handleClose();
       }, 2000);
@@ -168,7 +168,7 @@ const CourseUploadModal = ({ isOpen, onClose }) => {
             className="absolute inset-0 bg-ink/80 backdrop-blur-sm pointer-events-auto"
             onClick={handleClose}
           />
-          
+
           {/* Modal Content */}
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -301,9 +301,8 @@ const CourseUploadModal = ({ isOpen, onClose }) => {
                         onDragOver={(e) => e.preventDefault()}
                         onDrop={(e) => handleFileDrop(e, 'thumbnail')}
                         onClick={() => thumbnailRef.current?.click()}
-                        className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${
-                          previews.thumbnail ? 'border-gold/50 bg-gold/5' : 'border-gold/20 hover:border-gold/40'
-                        }`}
+                        className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${previews.thumbnail ? 'border-gold/50 bg-gold/5' : 'border-gold/20 hover:border-gold/40'
+                          }`}
                       >
                         <input
                           type="file"
@@ -333,9 +332,8 @@ const CourseUploadModal = ({ isOpen, onClose }) => {
                         onDragOver={(e) => e.preventDefault()}
                         onDrop={(e) => handleFileDrop(e, 'video')}
                         onClick={() => videoRef.current?.click()}
-                        className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${
-                          previews.video ? 'border-gold/50 bg-gold/5' : 'border-gold/20 hover:border-gold/40'
-                        }`}
+                        className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${previews.video ? 'border-gold/50 bg-gold/5' : 'border-gold/20 hover:border-gold/40'
+                          }`}
                       >
                         <input
                           type="file"
@@ -362,17 +360,17 @@ const CourseUploadModal = ({ isOpen, onClose }) => {
 
                   {status === 'uploading' && (
                     <div className="space-y-2 pt-2">
-                        <div className="flex justify-between text-xs text-ivory/50">
-                            <span>Uploading securely...</span>
-                            <span className="font-semibold text-gold">{progress}%</span>
-                        </div>
-                        <div className="w-full bg-ink/50 h-2 rounded-full overflow-hidden border border-gold/10">
-                            <motion.div 
-                                className="h-full bg-gradient-to-r from-gold to-gold-dark"
-                                initial={{ width: 0 }}
-                                animate={{ width: `${progress}%` }}
-                            />
-                        </div>
+                      <div className="flex justify-between text-xs text-ivory/50">
+                        <span>Uploading securely...</span>
+                        <span className="font-semibold text-gold">{progress}%</span>
+                      </div>
+                      <div className="w-full bg-ink/50 h-2 rounded-full overflow-hidden border border-gold/10">
+                        <motion.div
+                          className="h-full bg-gradient-to-r from-gold to-gold-dark"
+                          initial={{ width: 0 }}
+                          animate={{ width: `${progress}%` }}
+                        />
+                      </div>
                     </div>
                   )}
 

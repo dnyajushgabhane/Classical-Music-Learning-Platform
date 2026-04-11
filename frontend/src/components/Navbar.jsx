@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
+import useThemeStore from '../store/themeStore';
 import { PremiumButton } from './PremiumButton';
-import { LogOut, User, Zap, Menu, X } from 'lucide-react';
+import { LogOut, User, Zap, Menu, X, Sun, Moon } from 'lucide-react';
 import API from '../services/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import LogoMark from './LogoMark';
@@ -14,6 +15,51 @@ const navLinkClass = ({ isActive }) =>
 
 function NavBarLink(props) {
   return <NavLink {...props} className={navLinkClass} />;
+}
+
+function ThemeToggle({ className = '' }) {
+  const { theme, toggle } = useThemeStore();
+  const isDark = theme === 'dark';
+
+  return (
+    <motion.button
+      type="button"
+      onClick={toggle}
+      whileHover={{ scale: 1.08 }}
+      whileTap={{ scale: 0.92 }}
+      aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+      className={`relative p-2 rounded-full border border-gold/25 text-ivory/60
+        hover:text-gold hover:border-gold/50 hover:bg-gold/5
+        transition-colors focus-visible:outline-none focus-visible:ring-2
+        focus-visible:ring-gold/40 ${className}`}
+    >
+      <AnimatePresence mode="wait" initial={false}>
+        {isDark ? (
+          <motion.span
+            key="sun"
+            initial={{ rotate: -30, opacity: 0 }}
+            animate={{ rotate: 0, opacity: 1 }}
+            exit={{ rotate: 30, opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            className="block"
+          >
+            <Sun className="w-4 h-4" />
+          </motion.span>
+        ) : (
+          <motion.span
+            key="moon"
+            initial={{ rotate: 30, opacity: 0 }}
+            animate={{ rotate: 0, opacity: 1 }}
+            exit={{ rotate: -30, opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            className="block"
+          >
+            <Moon className="w-4 h-4" />
+          </motion.span>
+        )}
+      </AnimatePresence>
+    </motion.button>
+  );
 }
 
 const Navbar = () => {
@@ -92,7 +138,9 @@ const Navbar = () => {
 
           <div className="hidden md:flex items-center gap-10">{links}</div>
 
-          <div className="hidden md:flex items-center gap-6">
+          <div className="hidden md:flex items-center gap-4">
+            <ThemeToggle />
+
             {userInfo ? (
               <>
                 {userInfo.role === 'Instructor' ? (
@@ -125,15 +173,19 @@ const Navbar = () => {
             )}
           </div>
 
-          <button
-            type="button"
-            className="md:hidden p-2 rounded-lg border border-gold/20 text-ivory hover:bg-gold/10 transition-colors"
-            onClick={() => setOpen((o) => !o)}
-            aria-expanded={open}
-            aria-label={open ? 'Close menu' : 'Open menu'}
-          >
-            {open ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-          </button>
+          {/* Mobile controls */}
+          <div className="md:hidden flex items-center gap-3">
+            <ThemeToggle />
+            <button
+              type="button"
+              className="p-2 rounded-lg border border-gold/20 text-ivory hover:bg-gold/10 transition-colors"
+              onClick={() => setOpen((o) => !o)}
+              aria-expanded={open}
+              aria-label={open ? 'Close menu' : 'Open menu'}
+            >
+              {open ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </button>
+          </div>
         </div>
       </nav>
 

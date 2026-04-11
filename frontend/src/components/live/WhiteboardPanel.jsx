@@ -1,27 +1,34 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { FileUp, Trash2, ChevronLeft, ChevronRight, Maximize2 } from 'lucide-react';
+import { uploadSessionMaterial } from '../../services/api';
+import toast from 'react-hot-toast';
 
-export default function WhiteboardPanel({ socket, roomId, isHost, readOnly = false }) {
+export default function WhiteboardPanel({ socket, roomId, sessionId, isHost, readOnly = false }) {
   const canvasRef = useRef(null);
   const drawing = useRef(false);
   const last = useRef(null);
   const [color] = useState('rgba(212, 175, 55, 0.85)');
+  const [pdfUrl, setPdfUrl] = useState(null);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
+    
     const resize = () => {
       const rect = canvas.getBoundingClientRect();
       canvas.width = rect.width * devicePixelRatio;
       canvas.height = rect.height * devicePixelRatio;
       ctx.scale(devicePixelRatio, devicePixelRatio);
-      ctx.fillStyle = 'rgba(15, 12, 10, 0.65)';
-      ctx.fillRect(0, 0, rect.width, rect.height);
+      // Transparent background so we can see the PDF underneath
+      ctx.clearRect(0, 0, rect.width, rect.height);
     };
+
     resize();
     window.addEventListener('resize', resize);
     return () => window.removeEventListener('resize', resize);
-  }, []);
+  }, [pdfUrl]);
 
   useEffect(() => {
     if (!socket || !roomId) return;
@@ -49,20 +56,19 @@ export default function WhiteboardPanel({ socket, roomId, isHost, readOnly = fal
       const canvas = canvasRef.current;
       const ctx = canvas?.getContext('2d');
       if (!canvas || !ctx) return;
-      const rect = canvas.getBoundingClientRect();
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-      canvas.width = rect.width * devicePixelRatio;
-      canvas.height = rect.height * devicePixelRatio;
-      ctx.scale(devicePixelRatio, devicePixelRatio);
-      ctx.fillStyle = 'rgba(15, 12, 10, 0.65)';
-      ctx.fillRect(0, 0, rect.width, rect.height);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
     };
+
+    const onMaterial = ({ url }) => setPdfUrl(url);
 
     socket.on('whiteboard:stroke', onStroke);
     socket.on('whiteboard:clear', onClear);
+    socket.on('session:material', onMaterial);
+    
     return () => {
       socket.off('whiteboard:stroke', onStroke);
       socket.off('whiteboard:clear', onClear);
+      socket.off('session:material', onMaterial);
     };
   }, [socket, roomId, color]);
 
@@ -72,6 +78,27 @@ export default function WhiteboardPanel({ socket, roomId, isHost, readOnly = fal
       roomId,
       stroke: { points, color, lineWidth: 2 },
     });
+  };
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.type !== 'application/pdf') {
+      return toast.error('Only PDF files are supported');
+    }
+
+    try {
+      setUploading(true);
+      const formData = new FormData();
+      formData.append('material', file);
+      const res = await uploadSessionMaterial(sessionId, formData);
+      setPdfUrl(res.url);
+      toast.success('Material uploaded successfully');
+    } catch (err) {
+      toast.error('Upload failed');
+    } finally {
+      setUploading(false);
+    }
   };
 
   const onPointerDown = (e) => {
@@ -108,29 +135,73 @@ export default function WhiteboardPanel({ socket, roomId, isHost, readOnly = fal
   };
 
   return (
-    <div className="flex flex-col h-full min-h-0 glass-panel rounded-2xl border-gold/20 overflow-hidden">
-      <div className="px-4 py-2 border-b border-gold/15 flex justify-between items-center">
-        <span className="text-sm font-display font-semibold text-ivory">Whiteboard</span>
-        {isHost && (
-          <button
-            type="button"
-            className="text-xs text-gold border border-gold/25 rounded-lg px-2 py-1"
-            onClick={() => socket?.emit('whiteboard:clear', { roomId })}
-          >
-            Clear
-          </button>
-        )}
+    <div className="flex flex-col h-full min-h-0 glass border-rv-border overflow-hidden shadow-2xl relative transition-colors duration-300">
+      <div className="px-5 py-4 border-b border-rv-border flex justify-between items-center bg-rv-bg-elevated/80 backdrop-blur-md">
+        <div className="flex items-center gap-3">
+          <span className="label-caps-accent">Teaching Mode</span>
+          {pdfUrl && (
+            <div className="flex items-center gap-1.5 bg-gold/[0.08] border border-gold/20 rounded-lg px-2.5 py-1 ml-4 transition-all">
+               <span className="text-[11px] font-medium text-rv-text-muted truncate max-w-[120px]">Document Active</span>
+            </div>
+          )}
+        </div>
+        
+        <div className="flex items-center gap-2">
+          {isHost && (
+            <>
+              <label className="cursor-pointer text-xs font-bold text-gold/80 hover:text-gold transition-all duration-200 flex items-center gap-2 border border-gold/25 rounded-xl px-3.5 py-1.5 bg-gold/[0.05] hover:bg-gold/[0.08]">
+                <FileUp className="w-4 h-4" />
+                {uploading ? '...' : 'Upload PDF'}
+                <input type="file" className="hidden" onChange={handleFileUpload} accept=".pdf" />
+              </label>
+              <button
+                type="button"
+                className="text-xs font-bold text-red-500/80 hover:text-red-500 flex items-center gap-2 px-3 py-1.5 transition-colors"
+                onClick={() => socket?.emit('whiteboard:clear', { roomId })}
+              >
+                <Trash2 className="w-4 h-4" />
+                Clear
+              </button>
+            </>
+          )}
+        </div>
       </div>
-      <canvas
-        ref={canvasRef}
-        className="flex-1 w-full touch-none cursor-crosshair min-h-[200px]"
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={endDraw}
-        onPointerLeave={endDraw}
-      />
+
+      <div className="flex-1 relative bg-rv-bg-page overflow-hidden transition-colors">
+        {pdfUrl ? (
+          <iframe
+            src={`${pdfUrl}#toolbar=0&navpanes=0&view=FitH`}
+            className="w-full h-full border-none"
+            title="teaching-material"
+          />
+        ) : (
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-rv-text-faint gap-4 animate-pulse-slow">
+             <div className="w-20 h-20 rounded-full border-2 border-dashed border-rv-border flex items-center justify-center bg-rv-bg-card/30">
+                <FileUp className="w-8 h-8 opacity-40" />
+             </div>
+             <p className="text-sm font-medium tracking-wide">Ready for lesson materials</p>
+          </div>
+        )}
+        
+        {/* Transparent Canvas Overlay for Annotations */}
+        <canvas
+          ref={canvasRef}
+          className="absolute inset-0 w-full h-full touch-none cursor-crosshair z-10"
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={endDraw}
+          onPointerLeave={endDraw}
+        />
+      </div>
+
       {!isHost && (
-        <p className="text-[10px] text-ivory/45 px-3 py-2 border-t border-gold/10">View-only</p>
+        <div className="px-5 py-2.5 bg-rv-bg-elevated/90 backdrop-blur-md border-t border-rv-border flex items-center justify-between shadow-inner">
+          <p className="label-caps opacity-80">Live Annotations Enabled</p>
+          <div className="flex items-center gap-2">
+             <div className="w-1.5 h-1.5 rounded-full bg-gold animate-pulse shadow-glow-sm" />
+             <span className="label-caps-accent tracking-tighter opacity-70">Synced</span>
+          </div>
+        </div>
       )}
     </div>
   );

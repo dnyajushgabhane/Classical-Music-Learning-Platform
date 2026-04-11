@@ -13,7 +13,7 @@ export default function CourseReviewForm({ courseId }) {
   // If no specific course ID is passed safely (like on a mocked dashboard page), we cannot submit a meaningful rating
   if (!courseId) {
     return (
-      <div className="music-sheet-card p-6 rounded-2xl border-gold/15 mt-8 text-center bg-ink/30">
+      <div className="premium-panel p-6 mt-8 text-center">
         <p className="text-ivory/50 text-sm italic">Finish completing a course module to unlock the ability to leave a rating and review.</p>
       </div>
     );
@@ -40,7 +40,7 @@ export default function CourseReviewForm({ courseId }) {
 
   if (isSuccess) {
     return (
-      <div className="music-sheet-card p-6 rounded-2xl border-gold/15 mt-8 text-center bg-ink/30 border-green-500/20">
+      <div className="premium-panel p-6 mt-8 text-center">
         <p className="text-green-400 font-semibold mb-2">⭐ Review Submitted Successfully</p>
         <p className="text-ivory/50 text-sm">Your feedback helps shape the future of RaagVidya.</p>
         <button 
@@ -54,7 +54,7 @@ export default function CourseReviewForm({ courseId }) {
   }
 
   return (
-    <div className="music-sheet-card p-6 md:p-8 rounded-2xl border-gold/15 mt-8 bg-ink/30">
+    <div className="premium-panel p-6 md:p-8 mt-8">
       <h3 className="text-lg font-display text-ivory mb-2">Rate this course</h3>
       <p className="text-sm text-ivory/50 mb-6 font-light">Your review is public and helps fellow students discover the right masterclass.</p>
       

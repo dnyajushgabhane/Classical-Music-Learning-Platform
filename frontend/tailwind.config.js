@@ -37,6 +37,27 @@ export default {
           card: "#12100F",
           dark: "#0F0F0F",
         },
+        /** Semantic tokens — backed by CSS custom properties.
+         *  These switch automatically with the active theme.
+         *  Use these in new components for future-proof theming. */
+        rv: {
+          bg:         "var(--rv-bg-page)",
+          surface:    "var(--rv-bg-elevated)",
+          card:       "var(--rv-bg-card)",
+          input:      "var(--rv-bg-input)",
+          hover:      "var(--rv-bg-hover)",
+          "glass-nav":  "var(--rv-glass-nav)",
+          "glass-panel":"var(--rv-glass-panel)",
+          overlay:    "var(--rv-overlay)",
+          border:     "var(--rv-border-subtle)",
+          "border-md":"var(--rv-border-medium)",
+          "border-lg":"var(--rv-border-strong)",
+          text:       "var(--rv-text-primary)",
+          "text-2":   "var(--rv-text-secondary)",
+          "text-muted":"var(--rv-text-muted)",
+          "text-faint":"var(--rv-text-faint)",
+          "text-accent":"var(--rv-text-accent)",
+        },
       },
       fontFamily: {
         sans: ["Outfit", "system-ui", "sans-serif"],

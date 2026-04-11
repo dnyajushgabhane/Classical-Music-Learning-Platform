@@ -154,15 +154,19 @@ export default function CourseCard({ course, index = 0 }) {
     <div className="perspective-dramatic h-full">
       <motion.article
         ref={ref}
-        initial={{ opacity: 0, y: 28 }}
+        initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: index * 0.08, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        transition={{ 
+          delay: index * 0.05, 
+          duration: 0.4, 
+          ease: [0.2, 0, 0, 1] 
+        }}
         onMouseMove={onMove}
         onMouseLeave={onLeave}
         style={{ rotateX, rotateY, transformStyle: 'preserve-3d' }}
         className="group h-full"
       >
-      <div className="relative rounded-2xl bg-background-card border border-gold/20 shadow-card transition-[box-shadow,transform] duration-500 group-hover:shadow-card-hover group-hover:border-gold/35 overflow-hidden h-full">
+      <div className="premium-panel bg-surface-card overflow-hidden h-full">
         <div
           className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-20"
           style={{

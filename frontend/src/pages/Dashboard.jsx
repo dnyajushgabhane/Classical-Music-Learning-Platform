@@ -28,6 +28,7 @@ export default function Dashboard() {
     queryKey: ['live-sessions'],
     queryFn: fetchLiveSessions,
     enabled: !!userInfo?.token,
+    refetchInterval: 15000, // Refetch every 15s as a fallback to socket events
   });
 
   if (!userInfo) {
@@ -47,15 +48,15 @@ export default function Dashboard() {
           transition={{ duration: 0.5 }}
           className="lg:w-56 shrink-0"
         >
-          <nav className="glass-panel rounded-2xl p-4 border-gold/15 sticky top-28 space-y-1">
-            <p className="text-[10px] uppercase tracking-[0.25em] text-ivory/40 px-3 py-2">Sanctuary</p>
+          <nav className="premium-panel p-4 sticky top-28 space-y-1.5">
+            <p className="label-caps px-3 py-2">Sanctuary</p>
             {sidebarItems.map((item) => (
               <a
                 key={item.id}
                 href={item.href}
-                className="flex items-center gap-3 px-3 py-3 rounded-xl text-ivory/70 hover:text-gold hover:bg-gold/5 border border-transparent hover:border-gold/15 transition-all text-sm font-medium"
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-rv-text-2 hover:text-gold hover:bg-gold/5 border border-transparent hover:border-gold/15 transition-all text-sm font-medium group"
               >
-                <item.icon className="w-5 h-5 text-gold/80 shrink-0" strokeWidth={1.5} />
+                <item.icon className="w-4.5 h-4.5 text-gold/60 group-hover:text-gold shrink-0 transition-colors" strokeWidth={1.8} />
                 {item.label}
               </a>
             ))}
@@ -75,12 +76,10 @@ export default function Dashboard() {
               </h1>
               <p className="text-ivory/50 mt-2 text-lg font-light">Your riyāz awaits — quiet, focused, royal.</p>
             </div>
-            <div className="music-sheet-card rounded-2xl px-8 py-5 text-center min-w-[200px]">
-              <p className="text-[10px] text-ivory/45 uppercase tracking-[0.2em] font-semibold mb-1">
-                Riyāz streak
-              </p>
+            <div className="premium-panel px-8 py-5 text-center min-w-[200px] flex flex-col justify-center">
+              <p className="label-caps mb-1">Riyāz streak</p>
               <p className="text-3xl font-display font-semibold text-gradient-gold">
-                {userInfo.riyaazStreak || 0} <span className="text-lg text-ivory/60 font-sans font-normal">days</span>
+                {userInfo.riyaazStreak || 0} <span className="text-sm text-rv-text-muted font-sans font-normal lowercase tracking-wide ml-1">days</span>
               </p>
             </div>
           </div>
@@ -106,9 +105,14 @@ export default function Dashboard() {
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {(!upcomingSessions || upcomingSessions.length === 0) && (
-                <p className="text-ivory/45 text-sm col-span-full italic">The masterclass schedule is currently being curated.</p>
+                <div className="premium-panel p-8 col-span-full text-center border-dashed">
+                  <Calendar className="w-8 h-8 text-gold/20 mx-auto mb-3" strokeWidth={1} />
+                  <p className="text-rv-text-muted text-sm italic max-w-sm mx-auto">
+                    The masterclass schedule is currently being curated. We'll notify you when new sessions are available.
+                  </p>
+                </div>
               )}
-              {(upcomingSessions || []).map((s) => {
+              {(upcomingSessions || []).filter(s => ['scheduled', 'live'].includes(s.status)).map((s) => {
                 const isEnrolled = s.enrolledStudents?.includes(userInfo._id);
                 const isLive = s.status === 'live';
                 
@@ -116,7 +120,7 @@ export default function Dashboard() {
                   <motion.div 
                     key={s._id}
                     whileHover={{ y: -4 }}
-                    className="music-sheet-card rounded-2xl overflow-hidden border-gold/15 flex flex-col h-full group"
+                    className="premium-panel overflow-hidden flex flex-col h-full group"
                   >
                     <div className="relative h-48 overflow-hidden">
                       <img 
@@ -194,10 +198,15 @@ export default function Dashboard() {
             </h2>
             <div className="space-y-4">
               {(!liveSessions || liveSessions.length === 0) && (
-                <p className="text-ivory/45 text-sm">No upcoming or live classes on the schedule.</p>
+                <div className="premium-panel p-10 text-center border-dashed">
+                  <Video className="w-8 h-8 text-gold/20 mx-auto mb-3" strokeWidth={1} />
+                  <p className="text-rv-text-muted text-sm max-w-xs mx-auto">
+                    No live classes are currently in progress. Check back soon or browse our course library.
+                  </p>
+                </div>
               )}
-              {(liveSessions || []).map((s) => (
-                <div key={s._id} className="music-sheet-card rounded-2xl p-6 flex flex-col sm:flex-row gap-4 sm:items-center justify-between">
+              {(liveSessions || []).filter(s => ['live', 'scheduled', 'pending'].includes(s.status)).map((s) => (
+                <div key={s._id} className="premium-panel p-6 flex flex-col sm:flex-row gap-4 sm:items-center justify-between">
                   <div className="flex gap-4 items-center min-w-0">
                     <div className="p-3 rounded-xl bg-gold/10 border border-gold/20 text-gold shrink-0">
                       <Clock className="w-6 h-6" />
@@ -236,7 +245,7 @@ export default function Dashboard() {
             <h2 className="text-2xl font-display font-semibold text-ivory mb-6 flex items-center gap-3">
               <Activity className="text-gold w-6 h-6" strokeWidth={1.5} /> Practice
             </h2>
-            <div className="music-sheet-card rounded-2xl p-8 text-center">
+            <div className="premium-panel p-8 text-center">
               <p className="text-ivory/55 mb-6 max-w-md mx-auto">
                 Digital tanpura, metronome, and riyāz room live in the dedicated practice space.
               </p>
@@ -254,12 +263,12 @@ export default function Dashboard() {
               <User className="text-gold w-6 h-6" strokeWidth={1.5} /> Profile
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="music-sheet-card rounded-2xl p-6">
+              <div className="premium-panel p-6">
                 <p className="text-xs uppercase tracking-widest text-ivory/45 mb-2">Account</p>
                 <p className="text-xl font-display text-ivory">{userInfo.name}</p>
                 <p className="text-sm text-ivory/50 mt-1">{userInfo.email}</p>
               </div>
-              <div className="music-sheet-card rounded-2xl p-6">
+              <div className="premium-panel p-6">
                 <h3 className="text-lg font-display font-semibold text-ivory mb-4 flex items-center gap-2">
                   <Trophy className="text-gold w-5 h-5" /> Achievements
                 </h3>

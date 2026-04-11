@@ -70,8 +70,8 @@ export default function Courses() {
       </div>
 
       <PageShell>
-        <header className="mb-14">
-          <p className="text-xs uppercase tracking-[0.35em] text-gold/70 mb-4">Curriculum</p>
+        <header className="mb-14 page-enter">
+          <p className="text-xs uppercase tracking-[0.35em] text-gold-safe mb-4">Curriculum</p>
           <h1 className="font-display text-display-lg font-semibold text-ivory mb-4">
             Explore <span className="text-gradient-gold">masterclasses</span>
           </h1>
@@ -80,7 +80,7 @@ export default function Courses() {
           </p>
         </header>
 
-        <div className="relative glass-panel rounded-2xl p-8 mb-14 border-gold/20">
+        <div className="premium-panel p-8 mb-14">
           <div className="absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl bg-gradient-to-b from-gold via-copper to-gold-dark opacity-90" />
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 pl-2">
             <div className="md:col-span-2">
@@ -132,7 +132,11 @@ export default function Courses() {
         </div>
 
         {isLoading ? (
-          <p className="text-gold text-center py-24 text-xl font-display animate-pulse">Tuning the archive…</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-10">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="card-premium h-80 skeleton-shimmer opacity-40" />
+            ))}
+          </div>
         ) : (
           <>
             {error ? (

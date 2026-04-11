@@ -20,7 +20,7 @@ const WaveformPlayer = ({ url, title, artist }) => {
 
     const wavesurfer = WaveSurfer.create({
       container: containerRef.current,
-      waveColor: 'rgba(248, 241, 233, 0.12)',
+      waveColor: 'rgba(184, 134, 11, 0.15)',
       progressColor: GOLD,
       cursorColor: GOLD_DIM,
       barWidth: 2,
@@ -82,7 +82,7 @@ const WaveformPlayer = ({ url, title, artist }) => {
   };
 
   return (
-    <div className="music-sheet-card rounded-3xl p-6 md:p-8 overflow-hidden">
+    <div className="premium-panel p-6 md:p-8">
       <div className="flex flex-col sm:flex-row sm:items-center gap-6 mb-8">
         <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-gold/20 to-ink border border-gold/25 flex items-center justify-center shrink-0 shadow-glow-sm">
           <Maximize2 className="text-gold w-8 h-8" strokeWidth={1.25} />
@@ -120,7 +120,7 @@ const WaveformPlayer = ({ url, title, artist }) => {
           <button
             type="button"
             onClick={handlePlayPause}
-            className="w-14 h-14 rounded-full bg-gradient-to-br from-gold to-gold-dark flex items-center justify-center text-ink hover:scale-110 transition-transform shadow-glow"
+            className="w-14 h-14 rounded-full bg-gradient-to-br from-gold to-gold-dark flex items-center justify-center text-ink hover:scale-110 transition-transform shadow-lg"
           >
             {isPlaying ? <Pause className="fill-current w-6 h-6" /> : <Play className="fill-current w-6 h-6 ml-0.5" />}
           </button>

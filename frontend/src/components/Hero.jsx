@@ -5,7 +5,7 @@ import { PremiumButton } from './PremiumButton';
 
 export default function Hero() {
   return (
-    <section className="relative min-h-[calc(100vh-5rem)] flex flex-col items-center justify-center px-4 sm:px-6 overflow-hidden pt-24 pb-20">
+    <section className="relative min-h-[calc(100vh-5rem)] flex flex-col items-center justify-center px-4 sm:px-6 overflow-hidden pt-24 pb-32">
       <div className="absolute inset-0 bg-gradient-radial-hero" />
       <div
         className="absolute inset-0 opacity-[0.07]"
@@ -62,7 +62,7 @@ export default function Hero() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.45, duration: 0.6 }}
-          className="flex flex-col sm:flex-row items-center justify-center gap-5"
+          className="flex flex-col sm:flex-row items-center justify-center gap-5 mb-16"
         >
           <PremiumButton to="/courses" variant="primary">
             Start Learning
@@ -71,21 +71,21 @@ export default function Hero() {
             Explore Ragas
           </PremiumButton>
         </motion.div>
-      </div>
 
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 1, duration: 0.8 }}
-        className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-ivory/30"
-      >
-        <span className="text-[10px] uppercase tracking-[0.3em]">Scroll</span>
         <motion.div
-          animate={{ y: [0, 6, 0] }}
-          transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-          className="w-px h-10 bg-gradient-to-b from-gold/40 to-transparent rounded-full"
-        />
-      </motion.div>
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1, duration: 0.8 }}
+          className="flex flex-col items-center gap-2 text-ivory/65 pointer-events-none"
+        >
+          <span className="text-xs uppercase tracking-[0.3em]">Scroll</span>
+          <motion.div
+            animate={{ y: [0, 6, 0] }}
+            transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+            className="w-px h-10 bg-gradient-to-b from-gold/60 to-transparent rounded-full"
+          />
+        </motion.div>
+      </div>
     </section>
   );
 }

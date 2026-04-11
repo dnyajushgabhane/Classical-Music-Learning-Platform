@@ -8,6 +8,7 @@ import ChatPanel from './ChatPanel';
 import ParticipantsPanel from './ParticipantsPanel';
 import WhiteboardPanel from './WhiteboardPanel';
 import RecordingsPanel from './RecordingsPanel';
+import FloatingReactions from './FloatingReactions';
 
 export default function VideoRoom({
   session,
@@ -21,9 +22,14 @@ export default function VideoRoom({
   spotlightIdentity,
   recordingOn,
   onToggleRecording,
-  reactionPopup,
-  layout = 'grid',
   onLayoutChange,
+  layout,
+  onEndSession,
+  onReaction,
+  floatingReactions = [],
+  onRemoveReaction,
+  waitingEntries = [],
+  onAdmitUser,
 }) {
   const [rightPanel, setRightPanel] = useState('chat');
   const [pinnedIdentity, setPinnedIdentity] = useState(null);
@@ -44,7 +50,8 @@ export default function VideoRoom({
   const selfId = userInfo?._id || userInfo?.id;
   const teacherId = session.teacher?._id || session.teacher;
   const isHost =
-    userInfo?.role === 'Instructor' && String(teacherId) === String(selfId);
+    (userInfo?.role === 'Instructor' || userInfo?.role === 'Admin') &&
+    (String(teacherId) === String(selfId) || userInfo?.role === 'Admin');
 
   const effectivePin = spotlightIdentity || pinnedIdentity;
 
@@ -98,35 +105,35 @@ export default function VideoRoom({
   };
 
   return (
-    <div className="relative flex flex-col h-[100dvh] bg-ink text-ivory overflow-hidden">
+    <div className="relative flex flex-col h-[100dvh] bg-rv-bg text-rv-text overflow-hidden transition-colors duration-300">
       <RoomAudioRenderer />
 
       <header className="shrink-0 z-20 px-4 py-3 border-b border-gold/15 glass-nav flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-[10px] uppercase tracking-[0.25em] text-gold/70">Live gurukul</p>
-          <h1 className="font-display text-lg font-semibold truncate">{session.title}</h1>
+          <p className="label-caps-accent mb-0.5">Live gurukul</p>
+          <h1 className="font-display text-xl font-semibold text-rv-text truncate">{session.title}</h1>
         </div>
-        <div className="flex items-center gap-2 text-xs text-ivory/55 shrink-0">
-          <span className="w-2 h-2 rounded-full bg-saffron animate-pulse" />
-          LIVE
+        <div className="flex items-center gap-3 shrink-0">
+          {isHost && waitingEntries.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setRightPanel('people')}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-saffron/15 border border-saffron/40 text-saffron text-xs font-bold animate-pulse"
+            >
+              <span className="w-2 h-2 rounded-full bg-saffron" />
+              {waitingEntries.length} waiting
+            </button>
+          )}
+          <div className="flex items-center gap-2 text-xs font-medium text-rv-text-muted">
+            <span className="w-2 h-2 rounded-full bg-saffron animate-pulse" />
+            LIVE
+          </div>
         </div>
       </header>
 
       <div className="flex-1 flex min-h-0">
         <main className="flex-1 min-w-0 flex flex-col p-3 gap-3 relative">
-          <AnimatePresence>
-            {reactionPopup && (
-              <motion.div
-                key={reactionPopup.ts}
-                initial={{ opacity: 0, y: 12, scale: 0.9 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -20 }}
-                className="absolute top-4 left-1/2 -translate-x-1/2 z-30 text-4xl pointer-events-none drop-shadow-lg"
-              >
-                {reactionPopup.emoji}
-              </motion.div>
-            )}
-          </AnimatePresence>
+          <FloatingReactions reactions={floatingReactions} onRemove={onRemoveReaction} />
 
           <div className={`grid gap-3 flex-1 min-h-0 overflow-y-auto ${gridClass}`}>
             {sorted.map((trackRef, index) => {
@@ -164,19 +171,25 @@ export default function VideoRoom({
               onLayoutChange={onLayoutChange}
               onRaiseHand={handleRaiseHand}
               handRaised={handRaised}
+              onEndSession={onEndSession}
+              onReaction={onReaction}
             />
           </div>
         </main>
 
         {rightPanel !== 'hidden' && (
-          <aside className="w-full sm:w-[340px] lg:w-[380px] shrink-0 border-l border-gold/15 flex flex-col bg-background-dark/95 min-h-0 max-h-[100dvh]">
-            <div className="flex border-b border-gold/15 text-[11px] font-semibold uppercase tracking-wider">
+          <aside className="w-full sm:w-[340px] lg:w-[380px] shrink-0 border-l border-rv-border flex flex-col bg-rv-bg-card/95 backdrop-blur-md min-h-0 max-h-[100dvh] shadow-xl">
+            <div className="flex border-b border-rv-border bg-rv-bg-card/50">
               {['chat', 'people', 'board', ...(isHost ? ['recordings'] : [])].map((tab) => (
                 <button
                   key={tab}
                   type="button"
                   onClick={() => setRightPanel(tab)}
-                  className={`flex-1 py-2 transition-colors ${rightPanel === tab ? 'text-gold border-b-2 border-gold' : 'text-ivory/45'}`}
+                  className={`flex-1 py-3.5 transition-all duration-200 label-caps border-b-2 ${
+                    rightPanel === tab 
+                      ? 'text-gold border-gold bg-gold/[0.03]' 
+                      : 'text-rv-text-muted border-transparent hover:text-rv-text hover:bg-rv-hover'
+                  }`}
                 >
                   {tab}
                 </button>
@@ -202,6 +215,8 @@ export default function VideoRoom({
                   isHost={isHost}
                   selfUserId={selfId}
                   spotlightIdentity={effectivePin}
+                  waitingEntries={waitingEntries}
+                  onAdmitUser={onAdmitUser}
                   onSpotlight={(identity) => {
                     setPinnedIdentity(identity || null);
                     onSpotlightMeta?.(identity || '');

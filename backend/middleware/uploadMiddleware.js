@@ -36,6 +36,15 @@ function checkFileType(file, cb) {
         } else {
             cb(new Error('Videos only! (mp4, mkv, avi, webm, mov)'));
         }
+    } else if (file.fieldname === 'material') {
+        const filetypes = /pdf/;
+        const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+        const mimetype = file.mimetype === 'application/pdf';
+        if (extname && mimetype) {
+            return cb(null, true);
+        } else {
+            cb(new Error('PDF documents only!'));
+        }
     } else {
         cb(new Error('Invalid field'));
     }

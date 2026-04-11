@@ -17,11 +17,13 @@ import LiveSessionPage from './pages/LiveSessionPage';
 import LiveConcerts from './pages/LiveConcerts';
 import PracticeRoom from './pages/PracticeRoom';
 import Pricing from './pages/Pricing';
+import GlobalSocketListener from './components/GlobalSocketListener';
 
 function App() {
   return (
     <ErrorBoundary>
       <Toaster position="top-right" reverseOrder={false} />
+      <GlobalSocketListener />
       <div className="min-h-screen flex flex-col relative">
         <CursorGlow />
         <Navbar />

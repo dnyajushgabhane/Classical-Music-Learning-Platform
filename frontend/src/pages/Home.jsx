@@ -43,7 +43,7 @@ export default function Home() {
               viewport={{ once: true }}
               transition={{ delay: idx * 0.08, duration: 0.55 }}
               whileHover={{ y: -6 }}
-              className="group relative music-sheet-card rounded-2xl p-8 flex flex-col items-center text-center overflow-hidden"
+              className="group relative premium-panel p-8 flex flex-col items-center text-center overflow-hidden"
             >
               <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-gradient-to-br from-gold/5 via-transparent to-copper/5 pointer-events-none" />
               <feature.icon className="text-gold w-11 h-11 mb-6 relative z-10" strokeWidth={1.25} />

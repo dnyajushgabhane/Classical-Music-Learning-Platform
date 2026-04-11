@@ -13,6 +13,7 @@ const {
   startSessionRecording,
   stopSessionRecording,
   checkLiveKitHealth,
+  uploadSessionMaterial,
 } = require('../controllers/liveSessionController');
 const {
   createInviteLink,
@@ -36,6 +37,7 @@ const { liveSessionLimiter } = require('../middleware/rateLimitMiddleware');
 const {
   handleValidationErrors,
 } = require('../middleware/validationMiddleware');
+const upload = require('../middleware/uploadMiddleware');
 
 router.get('/health/livekit', protect, checkLiveKitHealth);
 
@@ -62,6 +64,8 @@ router.put('/:id', protect, instructor, updateLiveSessionMeta);
 router.put('/:id/settings', protect, instructor, updateSessionSettings);
 
 router.get('/:id', protect, getLiveSessionById);
+
+router.post('/:id/material', protect, instructor, upload.single('material'), uploadSessionMaterial);
 
 // Enhanced routes
 router.post('/:sessionId/invite-links', protect, instructor, ...validateInviteLink, createInviteLink);

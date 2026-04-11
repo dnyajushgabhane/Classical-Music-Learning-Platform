@@ -121,34 +121,30 @@ const InstructorDashboard = () => {
 
   return (
     <PageShell>
-      <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
+      <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6 page-enter">
         <div>
-          <p className="text-xs uppercase tracking-[0.3em] text-gold/70 mb-3">Faculty</p>
+          <p className="text-xs uppercase tracking-[0.3em] text-gold-safe mb-3">Faculty</p>
           <h1 className="font-display text-display-lg font-semibold text-ivory">
             Instructor <span className="text-gradient-gold">panel</span>
           </h1>
           <p className="text-ivory/50 mt-2 text-lg font-light">Curate syllabi with the clarity of a manuscript.</p>
         </div>
         <div className="flex flex-col sm:flex-row sm:items-end gap-3">
-          <motion.button
+          <button
             type="button"
             onClick={() => setIsUploadModalOpen(true)}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            className="bg-gold/10 text-gold font-bold py-3 px-6 rounded-xl border border-gold/20 flex items-center gap-2"
+            className="btn-premium bg-gold/10 text-gold font-bold py-3 px-6 border border-gold/20 flex items-center gap-2"
           >
             <Plus className="w-5 h-5" /> Launch Course
-          </motion.button>
+          </button>
           
-          <motion.button
+          <button
             type="button"
             onClick={() => setIsScheduleModalOpen(true)}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            className="bg-gradient-to-r from-gold to-gold-dark text-ink font-bold py-3 px-6 rounded-xl shadow-glow flex items-center gap-2"
+            className="btn-premium bg-gradient-to-r from-gold to-gold-dark text-ink font-bold py-3 px-6 shadow-glow-sm flex items-center gap-2"
           >
             <Calendar className="w-5 h-5" /> Schedule Masterclass →
-          </motion.button>
+          </button>
         </div>
       </div>
 
@@ -157,26 +153,23 @@ const InstructorDashboard = () => {
           {/* 0. Stats Cards (Relocated) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {stats.map((stat, idx) => (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: idx * 0.05 }}
+              <div
                 key={stat.label}
-                className="music-sheet-card p-6 rounded-2xl border-gold/15 relative overflow-hidden group hover:border-gold/30 transition-all cursor-default"
+                className="premium-panel p-6 cursor-default group"
               >
-                <div className={`w-12 h-12 rounded-xl bg-gold/5 border border-gold/15 flex items-center justify-center mb-4 ${stat.color} group-hover:scale-110 transition-transform`}>
+                <div className={`w-12 h-12 rounded-xl bg-gold/5 border border-gold/15 flex items-center justify-center mb-4 ${stat.color} group-hover:scale-110 transition-transform duration-300`}>
                   <stat.icon className="w-6 h-6" strokeWidth={1.5} />
                 </div>
                 <p className="text-[10px] text-ivory/40 uppercase font-bold tracking-[0.2em]">{stat.label}</p>
                 {stat.isLoading ? (
-                  <div className="h-9 w-24 bg-gold/10 animate-pulse rounded mt-2"></div>
+                  <div className="h-9 w-24 skeleton-shimmer opacity-40 mt-2"></div>
                 ) : (
                   <p className="text-3xl font-display font-bold text-ivory mt-1">{stat.value}</p>
                 )}
                 <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-10 transition-opacity pointer-events-none">
                     <stat.icon className="w-16 h-16" />
                 </div>
-              </motion.div>
+              </div>
             ))}
           </div>
 
@@ -188,8 +181,8 @@ const InstructorDashboard = () => {
             
             <div className="grid grid-cols-1 gap-6">
               {/* Gurukul Setup */}
-              <div className="music-sheet-card rounded-2xl p-6 border-gold/20 bg-gold/[0.02]">
-                <p className="text-xs text-ivory/40 mb-4 uppercase tracking-widest font-bold">Instant Classroom</p>
+              <div className="premium-panel p-6">
+                <p className="text-xs text-gold-safe mb-4 uppercase tracking-widest font-bold">Instant Classroom</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                   <input
                     value={liveTitle}
@@ -265,7 +258,7 @@ const InstructorDashboard = () => {
             <h2 className="text-xl font-display font-semibold text-ivory flex items-center gap-2">
                <Calendar className="w-5 h-5 text-gold" /> Planned Masterclasses
             </h2>
-            <div className="music-sheet-card rounded-2xl p-6 border-gold/10">
+            <div className="premium-panel p-6">
               <div className="space-y-3">
                 {(instructorsSessions_data || []).length > 0 ? (
                   instructorsSessions_data.slice(0, 3).map(sess => (
@@ -300,11 +293,15 @@ const InstructorDashboard = () => {
                <BookOpen className="w-5 h-5 text-gold" /> Published Curriculum
             </h2>
             {isCoursesLoading ? (
-              <div className="h-20 bg-gold/5 rounded-2xl animate-pulse" />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {[...Array(2)].map((_, i) => (
+                  <div key={i} className="premium-panel h-20 skeleton-shimmer opacity-30" />
+                ))}
+              </div>
             ) : courses?.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {courses.map((course) => (
-                  <div key={course._id} className="music-sheet-card p-4 rounded-xl flex items-center gap-4 border-gold/10 hover:border-gold/25 transition-all group cursor-default">
+                  <div key={course._id} className="premium-panel p-4 flex items-center gap-4 cursor-default">
                     <img
                       src={course.thumbnail || 'https://images.unsplash.com/photo-1516280440614-37939bbacd81?w=100&q=80'}
                       alt=""
@@ -329,7 +326,7 @@ const InstructorDashboard = () => {
                 ))}
               </div>
             ) : (
-              <div className="p-6 rounded-2xl border-2 border-dashed border-gold/5 bg-gold/[0.02] text-center">
+              <div className="premium-panel p-6 text-center">
                  <p className="text-xs text-ivory/40 italic mb-4">You haven't published any legacy yet.</p>
                  <button onClick={() => setIsUploadModalOpen(true)} className="text-xs text-gold font-bold hover:underline">Start your first course →</button>
               </div>
@@ -337,7 +334,7 @@ const InstructorDashboard = () => {
           </section>
 
           {/* 2.1 support Liaison (Relocated) */}
-          <section className="glass-panel p-6 rounded-2xl border border-gold/20 bg-gradient-to-br from-maroon/20 to-transparent shadow-xl">
+          <section className="premium-panel p-6 bg-gradient-to-br from-maroon/20 to-transparent">
              <div className="flex items-center gap-4 mb-6">
                 <div className="w-10 h-10 rounded-xl bg-gold/10 border border-gold/25 flex items-center justify-center text-gold animate-pulse-soft">
                    <MessageSquare className="w-5 h-5" />
@@ -357,7 +354,7 @@ const InstructorDashboard = () => {
         {/* 3. Modular Deck: Insights & Activity */}
         <div className="lg:col-span-4 lg:sticky lg:top-8 self-start flex flex-col gap-8">
            {/* Card A: Activity Feed */}
-           <section className="glass-panel p-6 rounded-2xl border-gold/15 shadow-xl hover:border-gold/25 transition-all">
+           <section className="premium-panel p-6 shadow-xl">
               <div className="flex items-center gap-3 mb-6">
                  <div className="w-8 h-8 rounded-lg bg-gold/5 border border-gold/15 flex items-center justify-center text-gold">
                     <Activity className="w-4 h-4" />
@@ -368,7 +365,7 @@ const InstructorDashboard = () => {
            </section>
 
            {/* Card B: Revenue Ledger (Compact) */}
-           <section className="glass-panel p-6 rounded-2xl border-gold/15 shadow-xl hover:border-gold/25 transition-all">
+           <section className="premium-panel p-6 shadow-xl">
               <div className="flex items-center justify-between mb-6">
                  <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-lg bg-gold/5 border border-gold/15 flex items-center justify-center text-gold">
@@ -383,7 +380,7 @@ const InstructorDashboard = () => {
 
            {/* Card C: Analytics (Trends) */}
            {(studentAnalytics?.length > 1 || revenueAnalytics?.length > 1) && (
-              <section className="glass-panel p-6 rounded-2xl border-gold/15 shadow-xl hover:border-gold/25 transition-all">
+              <section className="premium-panel p-6 shadow-xl hover:border-gold/25 transition-all">
                  <div className="flex items-center gap-3 mb-6">
                     <div className="w-8 h-8 rounded-lg bg-gold/5 border border-gold/15 flex items-center justify-center text-gold">
                        <TrendingUp className="w-4 h-4" />
@@ -404,7 +401,7 @@ const InstructorDashboard = () => {
            )}
 
            {/* 2.5 Masterclass Promotion CTA (Relocated) */}
-           <section className="glass-panel p-10 rounded-3xl border-gold/20 bg-gradient-to-br from-gold/[0.03] to-transparent flex flex-col items-center justify-center text-center group">
+           <section className="premium-panel p-10 flex flex-col items-center justify-center text-center group">
               <div className="w-16 h-16 rounded-2xl bg-gold/5 border border-gold/10 flex items-center justify-center text-gold mb-6 group-hover:scale-110 transition-transform duration-500 shadow-glow-sm">
                  <Calendar className="w-8 h-8" />
               </div>

@@ -1,10 +1,22 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>RaagVidya — Indian Classical Music</title>
+    <meta name="description" content="RaagVidya — curated pathways through ragas, lay, and the living tradition of the gharanas. Master Indian Classical Music." />
+    <!-- Anti-FOUC: apply theme before first paint -->
+    <script>
+      (function () {
+        try {
+          var s = localStorage.getItem('rv-theme');
+          var t = (s === 'light' || s === 'dark') ? s
+            : (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+          document.documentElement.setAttribute('data-theme', t);
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -6,12 +6,39 @@ const API = axios.create({
 });
 
 API.interceptors.request.use((req) => {
-    const userInfo = localStorage.getItem('userInfo');
-    if (userInfo) {
-        req.headers.Authorization = `Bearer ${JSON.parse(userInfo).token}`;
+    const userInfoString = localStorage.getItem('userInfo');
+    if (userInfoString) {
+        try {
+            const userInfo = JSON.parse(userInfoString);
+            if (userInfo?.token) {
+                req.headers.Authorization = `Bearer ${userInfo.token}`;
+            }
+        } catch (e) {
+            console.error('Failed to parse userInfo:', e);
+        }
     }
     return req;
-});
+}, (error) => Promise.reject(error));
+
+API.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        if (error.response?.status === 401) {
+            // Prevent redirect loop if already on login or if this is the login call itself
+            const isLoginRequest = error.config.url.includes('/auth/login');
+            
+            if (!isLoginRequest) {
+                console.warn('Session expired (401). Redirecting to login...');
+                localStorage.removeItem('userInfo');
+                // Use window.location for a hard redirect to ensure state is cleared
+                if (window.location.pathname !== '/login') {
+                    window.location.href = '/login?expired=true';
+                }
+            }
+        }
+        return Promise.reject(error);
+    }
+);
 
 export const loginCall = async (credentials) => {
     const { data } = await API.post('/auth/login', credentials);
@@ -141,6 +168,21 @@ export const startLiveRecording = async (sessionId) => {
 
 export const stopLiveRecording = async (sessionId) => {
     const { data } = await API.post(`/live-sessions/${sessionId}/recording/stop`);
+    return data;
+};
+
+export const uploadSessionMaterial = async (sessionId, formData, onUploadProgress) => {
+    const { data } = await API.post(`/live-sessions/${sessionId}/material`, formData, {
+        headers: {
+            'Content-Type': 'multipart/form-data'
+        },
+        onUploadProgress,
+    });
+    return data;
+};
+
+export const fetchTranscriptionSummary = async (sessionId, recordingId) => {
+    const { data } = await API.get(`/live-sessions/${sessionId}/recordings/${recordingId}/summary`);
     return data;
 };
 

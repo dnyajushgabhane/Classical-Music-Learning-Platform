@@ -1,13 +1,22 @@
 const LiveSession = require('../models/LiveSession');
 const SessionMessage = require('../models/SessionMessage');
 const SessionRecording = require('../models/SessionRecording');
+const TranscriptionJob = require('../models/TranscriptionJob');
 const {
   canAccessSession,
   canTeachSession,
   canViewSession,
   loadUserWithProgress,
+  extractId,
 } = require('../utils/liveSessionAccess');
-const { createLivekitToken, removeParticipant, muteParticipant, isLivekitConfigured } = require('../services/livekitService');
+const { 
+  createLivekitToken, 
+  removeParticipant, 
+  muteParticipant, 
+  isLivekitConfigured,
+  startRoomCompositeEgress,
+  stopEgress,
+} = require('../services/livekitService');
 const axios = require('axios');
 
 const populateTeacher = { path: 'teacher', select: 'name email role' };
@@ -86,7 +95,7 @@ const createLiveSession = async (req, res) => {
 const getLiveSessions = async (req, res) => {
   try {
     const user = await loadUserWithProgress(req.user._id);
-    const statusMatch = { status: { $in: ['pending', 'scheduled', 'live'] } };
+    const statusMatch = { status: { $in: ['created', 'scheduled', 'live'] } };
 
     let filter;
     if (user.role === 'Admin') {
@@ -108,7 +117,18 @@ const getLiveSessions = async (req, res) => {
       };
     }
 
-    const sessions = await LiveSession.find(filter)
+    // Aggressive Cleanup: Filter out sessions that have been "Live" but stagnant for too long (e.g. 4 hours)
+    // or those that are ended.
+    const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000);
+    const filterWithStale = {
+      ...filter,
+      $or: [
+        { status: { $in: ['created', 'scheduled'] } },
+        { status: 'live', updatedAt: { $gte: fourHoursAgo } }
+      ]
+    };
+
+    const sessions = await LiveSession.find(filterWithStale)
       .populate(populateTeacher)
       .populate(populateCourse)
       .sort({ scheduledStart: 1, createdAt: -1 })
@@ -116,7 +136,7 @@ const getLiveSessions = async (req, res) => {
 
     const mapped = sessions.map((s) => ({
       ...s,
-      status: s.status === 'pending' ? 'scheduled' : s.status,
+      status: s.status, // We now use deterministic status
     }));
     res.json(mapped);
   } catch (error) {
@@ -128,21 +148,57 @@ const getLiveSessions = async (req, res) => {
 const getLiveSessionById = async (req, res) => {
   try {
     const q = req.params.id;
-    const session =
-      (await LiveSession.findById(q).populate(populateTeacher).populate(populateCourse).populate({
-        path: 'waitingQueue.user',
-        select: 'name email',
-      })) ||
-      (await LiveSession.findOne({ roomId: q })
+    let session = await LiveSession.findById(q)
+      .populate(populateTeacher)
+      .populate(populateCourse)
+      .populate({ path: 'waitingQueue.user', select: 'name email' });
+    
+    if (!session) {
+      session = await LiveSession.findOne({ roomId: q })
         .populate(populateTeacher)
         .populate(populateCourse)
-        .populate({ path: 'waitingQueue.user', select: 'name email' }));
+        .populate({ path: 'waitingQueue.user', select: 'name email' });
+    }
+
+    // Try ScheduledSession if not found
+    if (!session) {
+      const ScheduledSession = require('../models/ScheduledSession');
+      session = await ScheduledSession.findById(q).populate({ path: 'instructor', select: 'name email role' });
+      if (session) {
+        // Map ScheduledSession to a compatible format for the frontend
+        session = session.toObject();
+        session.teacher = session.instructor;
+        session.isMasterclass = true;
+      }
+    }
 
     if (!session) return res.status(404).json({ message: 'Live session not found' });
 
     const viewer = await loadUserWithProgress(req.user._id);
-    if (!canViewSession(viewer, session)) {
-      return res.status(403).json({ message: 'You do not have access to this session' });
+
+    // --- OWNER FAST-PATH: session creator always can view their own session ---
+    // This bypasses canViewSession entirely to ensure the host is never locked out.
+    const viewerId = extractId(viewer);
+    const teacherDoc = session.teacher || session.instructor;
+    const teacherId = extractId(teacherDoc);
+    const isOwner = viewerId && teacherId && viewerId === teacherId;
+
+    // Also allow by email in case IDs are mismatched due to serialization
+    const ownerEmail = teacherDoc?.email;
+    const isOwnerByEmail = ownerEmail && viewer.email &&
+      String(ownerEmail).toLowerCase() === String(viewer.email).toLowerCase();
+
+    if (!isOwner && !isOwnerByEmail && viewer.role !== 'Admin' && !canViewSession(viewer, session)) {
+      console.error(`[403] Session ${q}: viewer=${viewerId} (${viewer.email}) teacher=${teacherId} (${ownerEmail}) role=${viewer.role}`);
+      return res.status(403).json({ 
+        message: 'You do not have access to this session',
+        debug: {
+          viewerId,
+          teacherId,
+          viewerRole: viewer.role,
+          accessType: session.accessType,
+        }
+      });
     }
 
     res.json(session);
@@ -155,59 +211,108 @@ const getLiveSessionById = async (req, res) => {
 const updateLiveSessionStatus = async (req, res) => {
   try {
     const { status } = req.body;
-    const session = await LiveSession.findById(req.params.id);
-    if (!session) return res.status(404).json({ message: 'Live session not found' });
-    if (!canTeachSession(req.user, session)) {
-      return res.status(403).json({ message: 'Not authorized' });
+    let session = await LiveSession.findById(req.params.id);
+    let ModelClass = LiveSession;
+    
+    if (!session) {
+      const ScheduledSession = require('../models/ScheduledSession');
+      session = await ScheduledSession.findById(req.params.id);
+      ModelClass = ScheduledSession;
+    }
+
+    if (!session) {
+      console.warn(`[StatusUpdate] Session ${req.params.id} not found in any model`);
+      return res.status(404).json({ message: 'Session not found' });
+    }
+    
+    const isScheduledModel = session.constructor.modelName === 'ScheduledSession';
+    const isOwner = isScheduledModel
+      ? session.instructor.toString() === req.user._id.toString() 
+      : canTeachSession(req.user, session);
+
+    if (!isOwner && req.user.role !== 'Admin') {
+      return res.status(403).json({ message: 'Not authorized to change this session status' });
     }
     if (!['scheduled', 'live', 'ended', 'pending'].includes(status)) {
       return res.status(400).json({ message: 'Invalid status' });
     }
 
     const previousStatus = session.status;
-    session.status = status === 'pending' ? 'scheduled' : status;
+    let targetStatus = status;
+    
+    // Explicit status mapping and validation
+    if (!['created', 'scheduled', 'live', 'ended', 'recorded', 'archived', 'cancelled'].includes(targetStatus)) {
+      return res.status(400).json({ message: 'Invalid status provided' });
+    }
+    
+    session.status = targetStatus;
+    session.isLive = (targetStatus === 'live');
+    
+    console.log(`[StatusUpdate] Session ${session._id} changing ${previousStatus} -> ${targetStatus}`);
 
     // If ending the session, create meeting history
-    if (status === 'ended' && previousStatus === 'live') {
-      const MeetingHistory = require('../models/MeetingHistory');
-      const SessionMessage = require('../models/SessionMessage');
-
-      const messages = await SessionMessage.countDocuments({ session: session._id });
-      const raisedHands = session.participants.filter(p => p.raisedHand).length;
-
-      const history = new MeetingHistory({
-        session: session._id,
-        roomId: session.roomId,
-        title: session.title,
-        teacher: session.teacher,
-        participants: session.participants.map(p => ({
-          user: p.user,
-          identity: p.identity,
-          name: p.name,
-          joinedAt: p.joinedAt,
-          role: p.role,
-          duration: Math.floor((Date.now() - new Date(p.joinedAt).getTime()) / 1000),
-        })),
-        startedAt: session.updatedAt, // Approximate start time
-        endedAt: new Date(),
-        duration: Math.floor((Date.now() - session.updatedAt.getTime()) / 1000),
-        recordings: session.activeRecording ? [session.activeRecording] : [],
-        totalParticipants: session.participants.length,
-        peakParticipants: session.participants.length, // Simplified
-        chatMessages: messages,
-        raisedHands,
-        settings: {
-          waitingRoomEnabled: session.waitingRoomEnabled,
-          locked: session.locked,
-          recordingEnabled: session.settings?.recordingEnabled || false,
-        },
-      });
-
-      await history.save();
+    if (targetStatus === 'ended' && previousStatus === 'live') {
+      session.endedAt = new Date();
+      session.isLive = false;
+      try {
+        const MeetingHistory = require('../models/MeetingHistory');
+        const SessionMessage = require('../models/SessionMessage');
+        const messagesCount = await SessionMessage.countDocuments({ session: session._id });
+        const history = new MeetingHistory({
+          session: session._id,
+          roomId: session.roomId,
+          title: session.title,
+          teacher: isScheduledModel ? session.instructor : session.teacher,
+          participants: (session.participants || []).map(p => ({
+            user: p.user,
+            identity: p.identity,
+            name: p.name,
+            joinedAt: p.joinedAt,
+            role: p.role,
+            duration: Math.floor((Date.now() - new Date(p.joinedAt).getTime()) / 1000),
+          })),
+          startedAt: session.updatedAt,
+          endedAt: new Date(),
+          duration: Math.max(0, Math.floor((Date.now() - session.updatedAt.getTime()) / 1000)),
+          recordings: session.activeRecording ? [session.activeRecording] : [],
+          totalParticipants: (session.participants || []).length,
+          peakParticipants: (session.participants || []).length,
+          chatMessages: messagesCount,
+          settings: session.settings || {},
+        });
+        await history.save();
+      } catch (hErr) {
+        console.error('History creation failed', hErr);
+      }
     }
 
     await session.save();
-    emitToLive(attachIO(req), session.roomId, 'session:status', { status: session.status });
+    const io = attachIO(req);
+    emitToLive(io, session.roomId, 'session:status', { status: session.status });
+
+    // Broadcast globally for dashboard invalidation
+    if (io) {
+      io.of('/live').emit('session:ended', { sessionId: session._id.toString(), roomId: session.roomId });
+    }
+
+    // Auto-stop recording if session ends
+    if ((targetStatus === 'ended' || targetStatus === 'completed' || targetStatus === 'cancelled') && session.activeRecording) {
+      try {
+        const SessionRecording = require('../models/SessionRecording');
+        const rec = await SessionRecording.findById(session.activeRecording);
+        if (rec && rec.status === 'active' && rec.egressId) {
+          await stopEgress(rec.egressId);
+          rec.status = 'completed';
+          await rec.save();
+        }
+        session.activeRecording = null;
+        await session.save();
+        emitToLive(io, session.roomId, 'recording:state', { active: false });
+      } catch (recErr) {
+        console.error('[StatusUpdate] Failed to stop recording on session end', recErr);
+      }
+    }
+
     res.json(session);
   } catch (error) {
     res.status(500).json({ message: 'Server Error: ' + error.message });
@@ -243,8 +348,13 @@ const updateLiveSessionMeta = async (req, res) => {
 // @desc LiveKit JWT for SFU
 const getLiveKitToken = async (req, res) => {
   try {
-    const session = await LiveSession.findById(req.params.id).populate('course');
-    if (!session) return res.status(404).json({ message: 'Live session not found' });
+    const q = req.params.id;
+    let session = await LiveSession.findById(q).populate('course');
+    if (!session) {
+      const ScheduledSession = require('../models/ScheduledSession');
+      session = await ScheduledSession.findById(q);
+    }
+    if (!session) return res.status(404).json({ message: 'Session not found' });
 
     const user = await loadUserWithProgress(req.user._id);
     const isTeacher = canTeachSession(user, session);
@@ -261,7 +371,12 @@ const getLiveKitToken = async (req, res) => {
     }
 
     if (!isTeacher && session.status !== 'live') {
-      return res.status(403).json({ code: 'NOT_LIVE', message: 'The class is not live yet.' });
+      const msg = ['ended', 'recorded', 'archived'].includes(session.status) ? 'The class has already ended.' : 'The class is not live yet.';
+      return res.status(403).json({ code: 'NOT_LIVE', message: msg });
+    }
+    
+    if (['ended', 'recorded', 'archived', 'cancelled'].includes(session.status)) {
+      return res.status(403).json({ code: 'ENDED', message: 'This session is no longer active.' });
     }
 
     if (session.waitingRoomEnabled && !isTeacher) {
@@ -340,7 +455,7 @@ const joinWaitingRoom = async (req, res) => {
     emitToLive(attachIO(req), session.roomId, 'waiting:user-joined', {
       userId: user._id.toString(),
       name: user.name,
-      queueLength: session.waitingQueue.length,
+      queueLength: session.waitingQueue.length + (already ? 0 : 1),
     });
 
     res.json({ admitted: false, waiting: true });
@@ -358,17 +473,35 @@ const admitWaitingUser = async (req, res) => {
     if (!canTeachSession(req.user, session)) {
       return res.status(403).json({ message: 'Not authorized' });
     }
-    session.admittedUsers.addToSet(userId);
+
+    // 1. Add to admittedUsers set (server source-of-truth for access)
+    const isAlreadyAdmitted = session.admittedUsers.some(id => id.toString() === userId);
+    if (!isAlreadyAdmitted) {
+      session.admittedUsers.push(userId);
+    }
+
+    // 2. Remove from waiting queue
     session.waitingQueue = session.waitingQueue.filter((w) => w.user.toString() !== userId);
+
+    // 3. Update participant status from 'waiting' → 'admitted'
+    const identity = `uid:${userId}`;
+    const participant = session.participants.find((p) => p.identity === identity);
+    if (participant) {
+      participant.status = 'admitted';
+    }
+
     await session.save();
 
+    // 4. Notify the specific student they can now connect
     emitToUser(attachIO(req), userId, 'waiting:admitted', {
       sessionId: session._id.toString(),
       roomId: session.roomId,
     });
+
+    // 5. Notify everyone in the room that a waiting user was admitted (to update host UI)
     emitToLive(attachIO(req), session.roomId, 'waiting:admitted-broadcast', { userId });
 
-    res.json({ ok: true });
+    res.json({ ok: true, roomId: session.roomId });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -402,8 +535,18 @@ const startSessionRecording = async (req, res) => {
     if (!canTeachSession(req.user, session)) {
       return res.status(403).json({ message: 'Not authorized' });
     }
+    if (session.status !== 'live') {
+      return res.status(400).json({ message: 'Session must be live to record' });
+    }
     if (session.activeRecording) {
       return res.status(400).json({ message: 'Recording already active' });
+    }
+
+    const outputFileName = `session_${session._id}_${Date.now()}`;
+    const egress = await startRoomCompositeEgress(session.roomId, outputFileName);
+    
+    if (!egress.ok) {
+      return res.status(500).json({ message: 'Failed to start recording', error: egress.error });
     }
 
     const rec = await SessionRecording.create({
@@ -411,7 +554,8 @@ const startSessionRecording = async (req, res) => {
       roomId: session.roomId,
       startedBy: req.user._id,
       status: 'active',
-      egressId: '',
+      egressId: egress.egressId,
+      playbackUrl: process.env.AWS_S3_BUCKET ? `https://${process.env.AWS_S3_BUCKET}.s3.${process.env.AWS_REGION || 'us-east-1'}.amazonaws.com/recordings/${outputFileName}.mp4` : '',
     });
     session.activeRecording = rec._id;
     await session.save();
@@ -420,8 +564,7 @@ const startSessionRecording = async (req, res) => {
 
     res.status(201).json({
       recording: rec,
-      note:
-        'Configure LiveKit Egress + cloud storage to capture composite video. This record is metadata-only until egress is wired.',
+      note: 'Recording started successfully using LiveKit Egress.',
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -440,8 +583,31 @@ const stopSessionRecording = async (req, res) => {
     }
     const rec = await SessionRecording.findById(session.activeRecording);
     if (rec) {
+      if (rec.egressId) {
+        await stopEgress(rec.egressId);
+      }
       rec.status = 'completed';
+      rec.durationSeconds = Math.floor((Date.now() - rec.createdAt.getTime()) / 1000);
       await rec.save();
+
+      // Trigger Mock AI Job
+      try {
+        await TranscriptionJob.create({
+          session: session._id,
+          recordingId: rec.id || rec._id,
+          status: 'completed',
+          summary: 'This session covered the advanced principles of the curriculum with focus on real-world applications.',
+          keyPoints: [
+            'Overview of core architectural patterns',
+            'Deep dive into state management strategies',
+            'Interactive Q&A session on production deployment'
+          ],
+          processedAt: new Date(),
+        });
+        console.log(`[AI] Mock job created for ${rec.id || rec._id}`);
+      } catch (e) {
+        console.error('[AI] Job creation failed:', e);
+      }
     }
     session.activeRecording = null;
     await session.save();
@@ -449,6 +615,45 @@ const stopSessionRecording = async (req, res) => {
     emitToLive(attachIO(req), session.roomId, 'recording:state', { active: false });
 
     res.json({ ok: true });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const uploadSessionMaterial = async (req, res) => {
+  try {
+    const session = await LiveSession.findById(req.params.id);
+    if (!session) return res.status(404).json({ message: 'Live session not found' });
+    if (!canTeachSession(req.user, session)) {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+    if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
+
+    const materialUrl = `/uploads/${req.file.filename}`;
+    // Store in settings or a new field
+    if (!session.settings) session.settings = {};
+    session.settings.materialUrl = materialUrl;
+    await session.save();
+
+    // Broadcast to the room
+    const io = attachIO(req);
+    emitToLive(io, session.roomId, 'session:material', { url: materialUrl });
+
+    res.json({ url: materialUrl });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const getTranscriptionSummary = async (req, res) => {
+  try {
+    const { recordingId } = req.params;
+    const job = await TranscriptionJob.findOne({ recordingId });
+    if (!job) {
+      // Return a simulated one if it's new (for demo purposes)
+      return res.status(404).json({ message: 'Processing in progress...' });
+    }
+    res.json(job);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -467,4 +672,6 @@ module.exports = {
   startSessionRecording,
   stopSessionRecording,
   checkLiveKitHealth,
+  uploadSessionMaterial,
+  getTranscriptionSummary,
 };

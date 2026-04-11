@@ -32,10 +32,17 @@ export function useLiveSocket() {
 
     s.on('connect_error', (err) => {
       console.error(`[Socket] Connection error: ${err.message}`);
-      toast.error(`Socket connection error: ${err.message}`);
-      // If unauthorized, we might need to clear state or redirect
-      if (err.message === 'Unauthorized') {
-        console.error('[Socket] Auth failure during reconnect');
+      
+      // If unauthorized, the token is likely expired or invalid.
+      // We must treat this like an API 401 and logout.
+      if (err.message === 'Unauthorized' || err.message === 'Missing token' || err.message === 'User not found') {
+        console.warn('[Socket] Session expired. Redirecting to login...');
+        localStorage.removeItem('userInfo');
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login?expired=true';
+        }
+      } else {
+        toast.error(`Socket connection issue: ${err.message}`, { id: 'socket-error' });
       }
     });
 

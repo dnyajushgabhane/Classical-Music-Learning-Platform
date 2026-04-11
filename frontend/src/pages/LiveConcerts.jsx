@@ -86,7 +86,7 @@ const LiveConcerts = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.1 }}
               key={event._id}
-              className="music-sheet-card rounded-2xl p-8 relative overflow-hidden group"
+              className="premium-panel p-8 relative overflow-hidden group"
             >
               <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-gold via-copper to-gold-dark opacity-90 rounded-l-2xl" />
               {event.isLive && (

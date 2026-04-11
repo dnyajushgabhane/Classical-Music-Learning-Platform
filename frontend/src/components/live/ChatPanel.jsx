@@ -17,24 +17,9 @@ export default function ChatPanel({
   const bottomRef = useRef(null);
 
   useEffect(() => {
+    // Scroll to bottom on any new messages
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
-
-  useEffect(() => {
-    if (!socket || !sessionId) return;
-
-    const onGroup = (msg) => {
-      fetchMessages?.();
-    };
-    const onPrivate = () => fetchMessages?.();
-
-    socket.on('chat:message', onGroup);
-    socket.on('chat:private', onPrivate);
-    return () => {
-      socket.off('chat:message', onGroup);
-      socket.off('chat:private', onPrivate);
-    };
-  }, [socket, sessionId, fetchMessages]);
 
   const send = () => {
     if (!text.trim() || !socket || !roomId) return;
@@ -48,21 +33,21 @@ export default function ChatPanel({
   };
 
   return (
-    <div className="flex flex-col h-full min-h-0 glass-panel rounded-2xl border-gold/20 overflow-hidden">
-      <div className="px-4 py-3 border-b border-gold/15 flex items-center justify-between gap-2">
-        <span className="text-sm font-display font-semibold text-ivory">Chat</span>
-        <div className="flex rounded-lg border border-gold/20 overflow-hidden text-[10px] font-bold uppercase">
+    <div className="flex flex-col h-full min-h-0 glass border-rv-border overflow-hidden">
+      <div className="px-5 py-4 border-b border-rv-border flex items-center justify-between gap-3">
+        <span className="text-sm font-semibold text-rv-text tracking-wide">Chat</span>
+        <div className="flex rounded-lg border border-rv-border overflow-hidden label-caps">
           <button
             type="button"
             onClick={() => setMode('group')}
-            className={`px-2 py-1 ${mode === 'group' ? 'bg-gold/20 text-gold' : 'text-ivory/50'}`}
+            className={`px-3 py-1.5 transition-colors ${mode === 'group' ? 'bg-gold/25 text-gold' : 'text-rv-text-muted hover:text-rv-text hover:bg-rv-hover'}`}
           >
             Group
           </button>
           <button
             type="button"
             onClick={() => setMode('private')}
-            className={`px-2 py-1 ${mode === 'private' ? 'bg-gold/20 text-gold' : 'text-ivory/50'}`}
+            className={`px-3 py-1.5 transition-colors ${mode === 'private' ? 'bg-gold/25 text-gold' : 'text-rv-text-muted hover:text-rv-text hover:bg-rv-hover'}`}
           >
             Direct
           </button>
@@ -70,12 +55,12 @@ export default function ChatPanel({
       </div>
 
       {mode === 'private' && (
-        <div className="px-3 py-2 border-b border-gold/10">
-          <label className="text-[10px] uppercase tracking-wider text-ivory/40 block mb-1">To</label>
+        <div className="px-4 py-3 border-b border-rv-border bg-gold/[0.02]">
+          <label className="label-caps mb-2 block">To</label>
           <select
             value={privateTo}
             onChange={(e) => setPrivateTo(e.target.value)}
-            className="w-full bg-ink/60 border border-gold/15 rounded-lg px-2 py-1.5 text-xs text-ivory"
+            className="rv-input py-2 text-xs"
           >
             <option value="">Select participant</option>
             {participants
@@ -94,13 +79,15 @@ export default function ChatPanel({
           {messages.map((m) => (
             <motion.div
               key={m.id || `${m.createdAt}-${m.sender}`}
-              initial={{ opacity: 0, x: 8 }}
-              animate={{ opacity: 1, x: 0 }}
-              className={`rounded-xl px-3 py-2 text-sm max-w-[95%] ${
-                m.sender === selfUserId ? 'ml-auto bg-gold/15 border border-gold/25 text-ivory' : 'bg-ink/80 border border-gold/10 text-ivory/85'
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              className={`rounded-xl px-4 py-2.5 text-sm max-w-[90%] shadow-sm ${
+                m.sender === selfUserId 
+                  ? 'ml-auto bg-gold/15 border border-gold/30 text-rv-text' 
+                  : 'bg-rv-bg-input border border-rv-border text-rv-text-2'
               }`}
             >
-              <div className="flex items-center gap-1 text-[10px] text-ivory/45 mb-0.5">
+              <div className="flex items-center gap-1.5 text-[10px] uppercase font-bold tracking-wider text-rv-text-muted mb-1 opacity-70">
                 <User className="w-3 h-3" />
                 {m.senderName}
                 {m.scope === 'private' && <span className="text-gold/70"> · direct</span>}
@@ -113,7 +100,7 @@ export default function ChatPanel({
       </div>
 
       <form
-        className="p-3 border-t border-gold/15 flex gap-2"
+        className="p-4 border-t border-rv-border flex gap-2.5"
         onSubmit={(e) => {
           e.preventDefault();
           send();
@@ -123,13 +110,13 @@ export default function ChatPanel({
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder="Message…"
-          className="flex-1 bg-ink/60 border border-gold/15 rounded-xl px-3 py-2 text-sm text-ivory placeholder:text-ivory/35 focus:outline-none focus:border-gold/40"
+          className="rv-input py-2.5"
         />
         <button
           type="submit"
-          className="p-2 rounded-xl bg-gradient-to-br from-gold to-gold-dark text-ink shadow-glow-sm"
+          className="p-2.5 rounded-xl bg-gradient-to-br from-gold to-gold-dark text-ink shadow-glow-sm hover:scale-[1.05] active:scale-[0.98] transition-all"
         >
-          <Send className="w-5 h-5" />
+          <Send className="w-5 h-5" strokeWidth={2} />
         </button>
       </form>
     </div>

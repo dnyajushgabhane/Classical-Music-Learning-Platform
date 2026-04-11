@@ -66,7 +66,7 @@ const PracticeRoom = () => {
         <motion.div
           whileHover={{ y: -4 }}
           transition={{ type: 'spring', stiffness: 400, damping: 28 }}
-          className="music-sheet-card rounded-3xl p-8 flex flex-col items-center text-center border-gold/20"
+          className="premium-panel p-8 flex flex-col items-center text-center"
         >
           <div className="w-16 h-16 bg-gold/10 rounded-2xl border border-gold/20 flex items-center justify-center mb-6">
             <Music className="text-gold w-8 h-8" strokeWidth={1.25} />
@@ -132,7 +132,7 @@ const PracticeRoom = () => {
         <motion.div
           whileHover={{ y: -4 }}
           transition={{ type: 'spring', stiffness: 400, damping: 28 }}
-          className="music-sheet-card rounded-3xl p-8 flex flex-col items-center text-center border-gold/20"
+          className="premium-panel p-8 flex flex-col items-center text-center"
         >
           <div className="w-16 h-16 bg-gold/10 rounded-2xl border border-gold/20 flex items-center justify-center mb-6">
             <Activity className="text-gold w-8 h-8" strokeWidth={1.25} />
@@ -197,7 +197,7 @@ const PracticeRoom = () => {
         </motion.div>
       </div>
 
-      <div className="mt-12 p-6 music-sheet-card rounded-2xl border-gold/15 flex items-start gap-4">
+      <div className="mt-12 p-6 premium-panel flex items-start gap-4">
         <Info className="text-gold w-6 h-6 flex-shrink-0 mt-0.5" strokeWidth={1.25} />
         <p className="text-sm text-ivory/55 leading-relaxed">
           Tune the tanpura to your Sa and let the metronome sculpt your laya. Advanced learners may fine-tune rate to

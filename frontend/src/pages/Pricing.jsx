@@ -67,7 +67,7 @@ const Pricing = () => {
   return (
     <PageShell>
       <div className="text-center mb-16">
-        <p className="text-xs uppercase tracking-[0.35em] text-gold/70 mb-4">Membership</p>
+        <p className="label-caps-accent mb-4 tracking-[0.4em]">Membership</p>
         <h1 className="font-display text-display-lg font-semibold text-ivory mb-4">
           Elevate your <span className="text-gradient-gold">sādhanā</span>
         </h1>
@@ -85,15 +85,15 @@ const Pricing = () => {
             viewport={{ once: true }}
             transition={{ delay: idx * 0.1 }}
             whileHover={{ y: tier.premium ? -6 : -2 }}
-            className={`relative rounded-3xl p-10 flex flex-col border transition-all duration-500 ${
+            className={`relative rounded-3xl p-10 flex flex-col border transition-all duration-500 premium-panel ${
               tier.premium
-                ? 'music-sheet-card border-gold/35 shadow-glow'
-                : 'glass-panel border-gold/10 hover:border-gold/20'
+                ? 'shadow-glow border-gold/35'
+                : 'border-gold/10 hover:border-gold/20'
             }`}
           >
             {tier.premium && (
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-gold to-gold-dark text-ink text-[10px] font-bold px-4 py-1.5 rounded-full uppercase tracking-[0.2em] shadow-glow-sm flex items-center gap-1.5">
-                <Star className="w-3 h-3 fill-current" /> Crown tier
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-gold to-gold-dark text-ink text-[11px] font-bold px-5 py-1.5 rounded-full uppercase tracking-[0.15em] shadow-glow-sm flex items-center gap-2">
+                <Star className="w-3.5 h-3.5 fill-current" strokeWidth={0} /> Crown tier
               </div>
             )}
 
@@ -108,17 +108,17 @@ const Pricing = () => {
               <p className="text-ivory/50 text-sm leading-relaxed">{tier.description}</p>
             </div>
 
-            <div className="space-y-4 mb-10 flex-1">
+            <div className="space-y-4.5 mb-10 flex-1">
               {tier.features.map((feature) => (
-                <div key={feature} className="flex items-start gap-3">
+                <div key={feature} className="flex items-start gap-3.5">
                   <div
-                    className={`mt-0.5 w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${
-                      tier.premium ? 'bg-gold/20 text-gold border border-gold/25' : 'bg-ivory/5 text-ivory/50 border border-gold/10'
+                    className={`mt-0.5 w-5 h-5 rounded-full flex items-center justify-center shrink-0 border ${
+                      tier.premium ? 'bg-gold/15 text-gold border-gold/30' : 'bg-ivory/5 text-rv-text-faint border-rv-border-subtle'
                     }`}
                   >
-                    <Check className="w-3 h-3" />
+                    <Check className="w-3 h-3" strokeWidth={3} />
                   </div>
-                  <span className="text-sm text-ivory/65">{feature}</span>
+                  <span className="text-sm font-medium text-rv-text-2">{feature}</span>
                 </div>
               ))}
             </div>

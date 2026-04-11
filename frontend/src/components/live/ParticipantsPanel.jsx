@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { MicOff, VideoOff, UserMinus, Hand, Star } from 'lucide-react';
+import { MicOff, VideoOff, UserMinus, Hand, Star, UserCheck } from 'lucide-react';
 import { useSpeakingParticipants } from '@livekit/components-react';
 
 const emojiReactions = ['🙏', '👏', '❤️', '🎵', '🔥'];
@@ -14,6 +14,8 @@ export default function ParticipantsPanel({
   onSpotlight,
   spotlightIdentity,
   onReaction,
+  waitingEntries = [],
+  onAdmitUser,
 }) {
   const speakers = useSpeakingParticipants();
   const speakingIds = new Set(speakers.map((p) => p.identity));
@@ -22,10 +24,50 @@ export default function ParticipantsPanel({
 
   return (
     <div className="flex flex-col h-full min-h-0 glass-panel rounded-2xl border-gold/20 overflow-hidden">
-      <div className="px-4 py-3 border-b border-gold/15">
-        <span className="text-sm font-display font-semibold text-ivory">Participants</span>
-        <span className="text-xs text-ivory/45 ml-2">({participants.length})</span>
+      <div className="px-5 py-4 border-b border-rv-border flex items-center justify-between">
+        <span className="text-sm font-semibold text-rv-text tracking-wide">Participants</span>
+        <span className="text-xs font-medium text-rv-text-muted bg-ivory/5 px-2 py-0.5 rounded-full border border-rv-border-subtle">
+           {participants.length}
+        </span>
       </div>
+
+      {/* ─── WAITING ROOM QUEUE (host only) ─────────────────────────────── */}
+      {isHost && (
+        <div className="border-b border-saffron/20 bg-saffron/[0.03]">
+          <p className="label-caps-accent px-5 pt-4 pb-2">
+            Waiting Admission ({waitingEntries.length})
+          </p>
+          {waitingEntries.length > 0 ? (
+            <div className="px-2 pb-2 space-y-1">
+              {waitingEntries.map((w) => (
+                <motion.div
+                  key={w.userId}
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  className="flex items-center gap-3 px-3 py-2 rounded-xl border border-saffron/20 bg-rv-bg-card shadow-sm"
+                >
+                  <div className="w-1.5 h-1.5 rounded-full bg-saffron animate-pulse shrink-0" />
+                  <p className="text-sm font-medium text-rv-text flex-1 truncate">{w.name}</p>
+                  <button
+                    type="button"
+                    onClick={() => onAdmitUser?.(w.userId)}
+                    className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-saffron/20 border border-saffron/40 text-saffron text-xs font-bold hover:bg-saffron/30 transition-colors shrink-0"
+                  >
+                    <UserCheck className="w-3.5 h-3.5" />
+                    Admit
+                  </button>
+                </motion.div>
+              ))}
+            </div>
+          ) : (
+            <div className="px-5 pb-4 text-[11px] text-rv-text-muted italic">
+              No students waiting currently.
+            </div>
+          )}
+        </div>
+      )}
+      {/* ──────────────────────────────────────────────────────────────────── */}
 
       {!isHost && (
         <div className="px-3 py-2 border-b border-gold/10 flex flex-wrap gap-2">
@@ -61,17 +103,19 @@ export default function ParticipantsPanel({
             <motion.div
               key={p.userId}
               layout
-              className={`rounded-xl px-3 py-2 flex items-center gap-2 border ${
-                speaking ? 'border-gold/40 bg-gold/5' : 'border-gold/10 bg-ink/40'
-              } ${spotlightIdentity === identity ? 'ring-1 ring-gold' : ''}`}
+              className={`rounded-xl px-4 py-2.5 flex items-center gap-3 border transition-all duration-200 ${
+                speaking 
+                  ? 'border-gold/35 bg-gold/[0.08] shadow-glow-sm' 
+                  : 'border-rv-border bg-rv-bg-card hover:bg-rv-hover'
+              } ${spotlightIdentity === identity ? 'ring-1 ring-gold/40' : ''}`}
             >
               <div className="flex-1 min-w-0">
-                <p className="text-sm text-ivory truncate flex items-center gap-1">
+                <p className="text-sm font-medium text-rv-text truncate flex items-center gap-1.5">
                   {p.name}
-                  {p.role === 'host' && <Star className="w-3.5 h-3.5 text-gold shrink-0" />}
-                  {isSelf && <span className="text-[10px] text-ivory/40">(you)</span>}
+                  {p.role === 'host' && <Star className="w-3.5 h-3.5 text-gold fill-gold/20 shrink-0" />}
+                  {isSelf && <span className="text-[11px] font-normal text-rv-text-faint">(you)</span>}
                 </p>
-                {speaking && <p className="text-[10px] text-gold/80">Speaking…</p>}
+                {speaking && <p className="text-[10px] font-semibold text-gold tracking-tight lowercase">Speaking…</p>}
               </div>
               {isHost && !isSelf && (
                 <div className="flex items-center gap-1 shrink-0">

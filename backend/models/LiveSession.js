@@ -33,7 +33,7 @@ const liveSessionSchema = new mongoose.Schema(
     }],
     status: {
       type: String,
-      enum: ['pending', 'scheduled', 'live', 'ended'],
+      enum: ['created', 'scheduled', 'live', 'ended', 'recorded', 'archived', 'cancelled'],
       default: 'scheduled',
     },
     /** Stable id used as LiveKit room name + socket room */
@@ -44,6 +44,8 @@ const liveSessionSchema = new mongoose.Schema(
     },
     scheduledStart: { type: Date, default: null },
     scheduledEnd: { type: Date, default: null },
+    endedAt: { type: Date, default: null },
+    isLive: { type: Boolean, default: false },
     waitingRoomEnabled: { type: Boolean, default: true },
     locked: { type: Boolean, default: false },
     /** Users allowed past waiting room (socket notifies + token issue) */
@@ -66,6 +68,11 @@ const liveSessionSchema = new mongoose.Schema(
       identity: String,
       user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
       name: String,
+      status: {
+        type: String,
+        enum: ['waiting', 'admitted', 'joined'],
+        default: 'joined', // backward-compat: existing participants are 'joined'
+      },
       role: {
         type: String,
         enum: ['host', 'moderator', 'participant'],
