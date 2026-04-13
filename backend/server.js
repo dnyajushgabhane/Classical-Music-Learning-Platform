@@ -55,11 +55,21 @@ app.use(cookieParser());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 
-// 🌐 CORS (IMPORTANT for frontend)
-const allowedOrigin = process.env.CLIENT_ORIGIN || 'http://localhost:5173';
+// 🌐 CORS — CLIENT_ORIGIN can be comma-separated for multiple allowed origins
+// e.g. "https://your-app.vercel.app,http://localhost:5173"
+const rawOrigins = process.env.CLIENT_ORIGIN || 'http://localhost:5173';
+const allowedOrigins = rawOrigins.split(',').map((o) => o.trim());
+
 app.use(
   cors({
-    origin: allowedOrigin,
+    origin: (origin, callback) => {
+      // Allow requests with no origin (e.g. curl, Render health checks)
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`CORS: origin ${origin} not allowed`));
+      }
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
@@ -124,7 +134,7 @@ const server = http.createServer(app);
 // 🔌 Socket.IO setup
 const io = new Server(server, {
   cors: {
-    origin: allowedOrigin,
+    origin: allowedOrigins,
     credentials: true,
     methods: ['GET', 'POST'],
   },

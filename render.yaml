@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: classical-music-backend
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: node server.js
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5001
+      - key: MONGO_URI
+        sync: false   # Set this manually in Render dashboard (MongoDB Atlas URI)
+      - key: JWT_SECRET
+        sync: false   # Set a strong random secret in Render dashboard
+      - key: CLIENT_ORIGIN
+        sync: false   # Your Vercel frontend URL, e.g. https://your-app.vercel.app
+      - key: LIVEKIT_URL
+        sync: false
+      - key: LIVEKIT_API_KEY
+        sync: false
+      - key: LIVEKIT_API_SECRET
+        sync: false
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
