@@ -23,3 +23,17 @@ yarn-error.log*
 *.temp.*
 package-lock.json
 nginx/
+
+# Root-level files not needed in repo
+/package.json
+/.env.example
+
+# Default Vite/React scaffolding files
+frontend/src/App.css
+frontend/src/assets/react.svg
+frontend/src/assets/vite.svg
+frontend/nginx.conf
+
+# Backend debug/utility scripts
+backend/check_user.js
+backend/healthcheck.js
