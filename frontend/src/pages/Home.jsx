@@ -4,6 +4,8 @@ import { PlayCircle, Award, Users, BookOpen } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Hero from '../components/Hero';
 import PageShell from '../components/layout/PageShell';
+import MasterclassSection from '../components/MasterclassSection';
+
 
 const features = [
   { icon: PlayCircle, title: 'Masterclasses', desc: 'Cinematic lessons with maestros — every phrase, every bol.' },
@@ -59,6 +61,10 @@ export default function Home() {
           ))}
         </div>
       </PageShell>
+
+      {/* ── Masterclass Feature Section ── */}
+      <MasterclassSection />
     </div>
   );
 }
+
