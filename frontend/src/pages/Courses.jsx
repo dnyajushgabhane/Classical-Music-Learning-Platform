@@ -5,8 +5,12 @@ import { Search } from 'lucide-react';
 import PageShell from '../components/layout/PageShell';
 import CourseCard from '../components/CourseCard';
 import FloatingNotes from '../components/effects/FloatingNotes';
+import MasterclassSection from '../components/MasterclassSection';
+import { useSEO } from '../hooks/useSEO';
+
 
 const sampleCourses = [
+
   {
     _id: '1',
     title: 'Mastering Raag Yaman',
@@ -44,10 +48,28 @@ const sampleCourses = [
     thumbnail:
       'https://images.unsplash.com/photo-1676302492425-3e1f955a3d18?w=640&q=80',
   },
+  {
+    _id: '4',
+    title: 'Curated: Classical Raga Unveiled',
+    instructor: { name: 'Maestro (Guest)' },
+    level: 'Intermediate',
+    category: 'Vocal',
+    price: 0,
+    mood: 'Meditative',
+    rating: 5.0,
+    thumbnail: 'https://img.youtube.com/vi/Yn4R4endnC4/maxresdefault.jpg',
+    videoLink: 'https://youtu.be/Yn4R4endnC4'
+  },
 ];
 
 export default function Courses() {
+  useSEO({
+    title: 'Masterclasses',
+    description: 'Explore our library of Indian Classical Music masterclasses. Learn vocal, strings, and percussion from maestros.',
+  });
+
   const [searchParams, setSearchParams] = useState({ q: '', mood: '', composer: '' });
+
 
   const { data: courses, isLoading, error } = useQuery({
     queryKey: ['courses', searchParams],
@@ -131,6 +153,8 @@ export default function Courses() {
           </div>
         </div>
 
+        <MasterclassSection />
+
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-10">
             {[...Array(6)].map((_, i) => (
@@ -138,9 +162,9 @@ export default function Courses() {
             ))}
           </div>
         ) : (
-          <>
+          <div className="space-y-10">
             {error ? (
-              <p className="text-saffron/90 text-center py-4 mb-8 text-sm border border-saffron/20 rounded-xl bg-saffron/5">
+              <p className="text-saffron/90 text-center py-4 text-sm border border-saffron/20 rounded-xl bg-saffron/5">
                 Could not reach the library — showing curated picks below.
               </p>
             ) : null}
@@ -149,7 +173,7 @@ export default function Courses() {
                 <CourseCard key={course._id} course={course} index={idx} />
               ))}
             </div>
-          </>
+          </div>
         )}
       </PageShell>
     </div>

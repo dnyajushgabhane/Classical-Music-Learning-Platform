@@ -9,16 +9,13 @@ dotenv.config();
 
 const { Server } = require('socket.io');
 const connectDB = require('./config/db');
-const authRoutes = require('./routes/authRoutes');
-const courseRoutes = require('./routes/courseRoutes');
-const eventRoutes = require('./routes/eventRoutes');
-const subscriptionRoutes = require('./routes/subscriptionRoutes');
-const liveSessionRoutes = require('./routes/liveSessionRoutes');
+const routes = require('./routes');
 
 const { initLiveSocket } = require('./socket/liveSocket');
 const { apiLimiter, authLimiter } = require('./middleware/rateLimitMiddleware');
 
 const app = express();
+app.set('trust proxy', 1);
 
 
 // 🔥 CONNECT DATABASE FIRST
@@ -93,19 +90,10 @@ app.get('/health', (req, res) => {
 });
 
 
-const instructorRoutes = require('./routes/instructorRoutes');
-const reviewRoutes = require('./routes/reviewRoutes');
-const sessionRoutes = require('./routes/sessionRoutes');
+
 
 // 🚀 API Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/courses', courseRoutes);
-app.use('/api/events', eventRoutes);
-app.use('/api/subscriptions', subscriptionRoutes);
-app.use('/api/live-sessions', liveSessionRoutes);
-app.use('/api/instructor', instructorRoutes);
-app.use('/api/reviews', reviewRoutes);
-app.use('/api/sessions', sessionRoutes);
+app.use('/api', routes);
 
 
 // ❌ 404 handler

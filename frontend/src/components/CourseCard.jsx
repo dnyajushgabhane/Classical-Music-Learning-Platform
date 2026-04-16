@@ -6,10 +6,11 @@ import { createCourseOrder, verifyCoursePayment } from '../services/api';
 
 function Rating({ value = 4.8 }) {
   return (
-    <div className="flex items-center gap-0.5" aria-label={`Rated ${value} out of 5`}>
+    <div className="flex items-center gap-0.5" role="img" aria-label={`Rated ${value} out of 5`}>
       {[1, 2, 3, 4, 5].map((i) => (
         <Star
           key={i}
+          aria-hidden="true"
           className={clsx(
             'w-3.5 h-3.5',
             i <= Math.round(value) ? 'text-gold fill-gold/85' : 'text-ivory/15'
@@ -20,6 +21,7 @@ function Rating({ value = 4.8 }) {
     </div>
   );
 }
+
 
 function LevelBadge({ level }) {
   const advanced = /advanced|intermediate/i.test(level || '');
@@ -65,6 +67,9 @@ export default function CourseCard({ course, index = 0 }) {
   const rotateY = useTransform(springX, [-0.5, 0.5], [-7, 7]);
 
   const onMove = (e) => {
+    // Disable 3D tilt on touch devices for smoother scrolling/interaction
+    if (window.matchMedia('(hover: none)').matches) return;
+    
     const el = ref.current;
     if (!el) return;
     const r = el.getBoundingClientRect();
@@ -73,6 +78,7 @@ export default function CourseCard({ course, index = 0 }) {
     x.set(px);
     y.set(py);
   };
+
 
   const onLeave = () => {
     x.set(0);

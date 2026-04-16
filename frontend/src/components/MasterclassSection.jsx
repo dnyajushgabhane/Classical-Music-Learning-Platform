@@ -3,14 +3,24 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Play, Sparkles, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-const VIDEO_ID = 'Yn4R4endnC4';
-const THUMBNAIL = `https://img.youtube.com/vi/${VIDEO_ID}/maxresdefault.jpg`;
-const THUMBNAIL_FALLBACK = `https://img.youtube.com/vi/${VIDEO_ID}/hqdefault.jpg`;
-const EMBED_URL = `https://www.youtube.com/embed/${VIDEO_ID}?autoplay=1&rel=0&modestbranding=1&color=white`;
+const MASTERCLASSES = [
+  {
+    id: 'Yn4R4endnC4',
+    title: 'Classical Raga Unveiled',
+    subtitle: 'Curated Masterclass · 38 min',
+    tag: 'Curated Masterclass'
+  },
+  {
+    id: 'fS2Xh9qZ1H8', // Placeholder for the second one, pt. hariprasad chaurasia
+    title: 'The Soul of the Bansuri',
+    subtitle: 'Exclusive Masterclass · 45 min',
+    tag: 'Exclusive'
+  }
+];
 
 export default function MasterclassSection() {
   const [open, setOpen] = useState(false);
-  const [thumbSrc, setThumbSrc] = useState(THUMBNAIL);
+  const [activeVideoId, setActiveVideoId] = useState(null);
 
   // Close modal on Escape key
   const handleKeyDown = useCallback((e) => {
@@ -31,10 +41,15 @@ export default function MasterclassSection() {
     };
   }, [open, handleKeyDown]);
 
+  const handlePlay = (id) => {
+    setActiveVideoId(id);
+    setOpen(true);
+  };
+
   return (
     <>
       {/* ─── Section ─────────────────────────────────────────────── */}
-      <section className="relative w-full py-24 md:py-32 overflow-hidden">
+      <section className="relative w-full py-20 overflow-hidden">
 
         {/* Ambient background glow */}
         <div
@@ -42,245 +57,101 @@ export default function MasterclassSection() {
           className="pointer-events-none absolute inset-0"
           style={{
             background: `
-              radial-gradient(ellipse 70% 50% at 50% 0%, rgba(212,175,55,0.07) 0%, transparent 60%),
-              radial-gradient(ellipse 50% 40% at 20% 100%, rgba(184,115,51,0.05) 0%, transparent 55%)
+              radial-gradient(ellipse 70% 50% at 50% 0%, rgba(212,175,55,0.05) 0%, transparent 60%)
             `,
           }}
         />
 
-        <div className="relative z-10 max-w-5xl mx-auto px-5 sm:px-8">
+        <div className="relative z-10 max-w-6xl mx-auto px-5 sm:px-8">
 
           {/* ── Header ── */}
           <motion.div
-            className="text-center mb-14"
-            initial={{ opacity: 0, y: 22 }}
+            className="text-center mb-12"
+            initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '-60px' }}
-            transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
           >
-            {/* eyebrow */}
-            <div className="inline-flex items-center gap-2 mb-5">
-              <Sparkles
-                className="text-gold/80"
-                size={13}
-                strokeWidth={1.5}
-              />
-              <span
-                className="text-[11px] font-semibold uppercase tracking-[0.28em]"
-                style={{ color: 'var(--text-accent)' }}
-              >
-                Exclusive Masterclass
+            <div className="inline-flex items-center gap-2 mb-4">
+              <Sparkles className="text-gold/80" size={13} />
+              <span className="text-[11px] font-semibold uppercase tracking-[0.28em] text-gold-safe">
+                Premium Curriculum
               </span>
-              <Sparkles
-                className="text-gold/80"
-                size={13}
-                strokeWidth={1.5}
-              />
+              <Sparkles className="text-gold/80" size={13} />
             </div>
 
-            <h2
-              className="font-display font-semibold mb-5"
-              style={{
-                fontSize: 'clamp(2rem, 4.5vw, 3.25rem)',
-                lineHeight: 1.08,
-                color: 'var(--text-primary)',
-              }}
-            >
-              Experience the artistry of{' '}
-              <span className="text-gradient-gold">timeless</span>{' '}
-              classical expression.
+            <h2 className="font-display text-3xl md:text-4xl font-semibold text-ivory mb-4">
+              Featured <span className="text-gradient-gold">Masterclasses</span>
             </h2>
-
-            <p
-              className="text-base md:text-lg font-light leading-relaxed max-w-xl mx-auto"
-              style={{
-                color: 'var(--text-muted)',
-                letterSpacing: '0.01em',
-              }}
-            >
-              A curated window into the soul of classical music — brought to
-              you by a maestro who breathes every phrase.
-            </p>
           </motion.div>
 
-          {/* ── Video Card ── */}
-          <motion.div
-            className="relative mx-auto"
-            style={{ maxWidth: 780 }}
-            initial={{ opacity: 0, y: 32, scale: 0.97 }}
-            whileInView={{ opacity: 1, y: 0, scale: 1 }}
-            viewport={{ once: true, margin: '-40px' }}
-            transition={{ duration: 0.7, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
-          >
-            {/* Card */}
-            <motion.button
-              id="masterclass-play-btn"
-              type="button"
-              aria-label="Play masterclass video"
-              onClick={() => setOpen(true)}
-              className="group relative w-full overflow-hidden focus:outline-none"
-              style={{
-                borderRadius: 22,
-                boxShadow: `
-                  0 24px 64px -8px rgba(0,0,0,0.55),
-                  0 0 0 1px rgba(212,175,55,0.18),
-                  0 0 80px -20px rgba(212,175,55,0.12)
-                `,
-              }}
-              whileHover={{ scale: 1.025 }}
-              whileTap={{ scale: 0.985 }}
-              transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-            >
-              {/* Thumbnail image */}
-              <div className="relative w-full" style={{ aspectRatio: '16/9' }}>
-                <img
-                  src={thumbSrc}
-                  alt="Classical Music Masterclass — YouTube thumbnail"
-                  onError={() => setThumbSrc(THUMBNAIL_FALLBACK)}
-                  className="w-full h-full object-cover"
-                  style={{ borderRadius: 22 }}
-                  loading="lazy"
-                />
-
-                {/* Glassmorphism top strip */}
-                <div
-                  aria-hidden="true"
-                  className="absolute inset-x-0 top-0 h-28 pointer-events-none"
-                  style={{
-                    borderRadius: '22px 22px 0 0',
-                    background:
-                      'linear-gradient(to bottom, rgba(15,8,4,0.55) 0%, transparent 100%)',
-                  }}
-                />
-
-                {/* Bottom gradient overlay with label */}
-                <div
-                  aria-hidden="true"
-                  className="absolute inset-x-0 bottom-0 pointer-events-none"
-                  style={{
-                    borderRadius: '0 0 22px 22px',
-                    padding: '0 0 22px 24px',
-                    background:
-                      'linear-gradient(to top, rgba(10,6,4,0.88) 0%, rgba(10,6,4,0.55) 40%, transparent 100%)',
-                  }}
+          {/* ── Video Cards Grid ── */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12">
+            {MASTERCLASSES.map((mc, idx) => (
+              <motion.div
+                key={mc.id}
+                initial={{ opacity: 0, y: 32 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.7, delay: idx * 0.15 }}
+                className="flex flex-col"
+              >
+                {/* Card */}
+                <motion.button
+                  type="button"
+                  aria-label={`Play ${mc.title}`}
+                  onClick={() => handlePlay(mc.id)}
+                  className="group relative w-full overflow-hidden focus:outline-none premium-panel aspect-video"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.985 }}
                 >
-                  <p className="font-display text-ivory/90 font-medium text-left"
-                    style={{ fontSize: 'clamp(1rem, 2.5vw, 1.4rem)', letterSpacing: '-0.01em' }}>
-                    Classical Raga Unveiled
-                  </p>
-                  <p className="text-ivory/50 text-xs tracking-[0.14em] uppercase mt-1 text-left">
-                    Curated Masterclass · 38 min
-                  </p>
-                </div>
-
-                {/* Glassmorphism shimmer over card */}
-                <div
-                  aria-hidden="true"
-                  className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
-                  style={{
-                    borderRadius: 22,
-                    background:
-                      'linear-gradient(135deg, rgba(212,175,55,0.06) 0%, transparent 50%, rgba(212,175,55,0.04) 100%)',
-                  }}
-                />
-
-                {/* ── Center Play Button ── */}
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  {/* Pulse ring 1 */}
-                  <motion.div
-                    aria-hidden="true"
-                    className="absolute rounded-full"
-                    style={{
-                      width: 92,
-                      height: 92,
-                      border: '1.5px solid rgba(212,175,55,0.35)',
+                  <img
+                    src={`https://img.youtube.com/vi/${mc.id}/maxresdefault.jpg`}
+                    alt={mc.title}
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                    loading="lazy"
+                    onError={(e) => {
+                      e.target.src = `https://img.youtube.com/vi/${mc.id}/hqdefault.jpg`;
                     }}
-                    animate={{ scale: [1, 1.55], opacity: [0.5, 0] }}
-                    transition={{ duration: 2.2, repeat: Infinity, ease: 'easeOut' }}
-                  />
-                  {/* Pulse ring 2 */}
-                  <motion.div
-                    aria-hidden="true"
-                    className="absolute rounded-full"
-                    style={{
-                      width: 92,
-                      height: 92,
-                      border: '1.5px solid rgba(212,175,55,0.2)',
-                    }}
-                    animate={{ scale: [1, 1.85], opacity: [0.35, 0] }}
-                    transition={{ duration: 2.2, repeat: Infinity, ease: 'easeOut', delay: 0.5 }}
                   />
 
-                  {/* Play disc */}
-                  <motion.div
-                    className="relative flex items-center justify-center rounded-full"
-                    style={{
-                      width: 72,
-                      height: 72,
-                      background: 'rgba(255,255,255,0.12)',
-                      backdropFilter: 'blur(14px)',
-                      WebkitBackdropFilter: 'blur(14px)',
-                      border: '1.5px solid rgba(255,255,255,0.25)',
-                      boxShadow: `
-                        0 8px 32px rgba(0,0,0,0.45),
-                        0 0 0 1px rgba(212,175,55,0.3),
-                        0 0 24px rgba(212,175,55,0.2)
-                      `,
-                    }}
-                    animate={{ scale: [1, 1.06, 1] }}
-                    transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut' }}
+                  {/* Overlays */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
+                  
+                  {/* Info */}
+                  <div className="absolute inset-x-0 bottom-0 p-5 sm:p-6 text-left">
+                    <p className="font-display text-ivory/90 font-medium text-lg leading-snug">
+                      {mc.title}
+                    </p>
+                    <p className="text-ivory/50 text-xs tracking-widest uppercase mt-1.5">
+                      {mc.subtitle}
+                    </p>
+                  </div>
+
+                  {/* Play Button */}
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-14 h-14 flex items-center justify-center rounded-full bg-ivory/10 backdrop-blur-md border border-ivory/30 group-hover:scale-110 transition-transform duration-300">
+                      <Play className="text-ivory ml-1" size={20} fill="currentColor" />
+                    </div>
+                  </div>
+                </motion.button>
+
+                {/* Tag & Link */}
+                <div className="flex items-center justify-between mt-4 px-1">
+                  <div className="text-[10px] font-bold uppercase tracking-widest text-gold/80 px-3 py-1 rounded-full border border-gold/20 bg-gold/5">
+                    {mc.tag}
+                  </div>
+                  <Link
+                    to="/courses"
+                    className="group/link inline-flex items-center gap-2 text-xs font-medium text-ivory/70 hover:text-gold transition-colors"
                   >
-                    <Play
-                      className="text-ivory"
-                      size={26}
-                      strokeWidth={0}
-                      fill="currentColor"
-                      style={{ marginLeft: 3 }}
-                    />
-                  </motion.div>
+                    Watch Now
+                    <ArrowRight size={12} className="transition-transform group-hover/link:translate-x-1" />
+                  </Link>
                 </div>
-              </div>
-            </motion.button>
-
-            {/* ── Below-card row ── */}
-            <motion.div
-              className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-7 px-1"
-              initial={{ opacity: 0, y: 12 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: 0.3 }}
-            >
-              {/* Tag badge */}
-              <div
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold uppercase tracking-[0.18em]"
-                style={{
-                  background: 'rgba(212,175,55,0.09)',
-                  border: '1px solid rgba(212,175,55,0.22)',
-                  color: 'var(--text-accent)',
-                }}
-              >
-                <span
-                  className="w-1.5 h-1.5 rounded-full animate-pulse"
-                  style={{ background: 'var(--text-accent)' }}
-                />
-                Curated Masterclass
-              </div>
-
-              {/* CTA */}
-              <Link
-                to="/courses"
-                id="masterclass-explore-cta"
-                className="group/link inline-flex items-center gap-2 text-sm font-medium link-underline-gold"
-                style={{ color: 'var(--text-primary)' }}
-              >
-                Explore More Sessions
-                <ArrowRight
-                  size={15}
-                  className="transition-transform duration-200 group-hover/link:translate-x-1"
-                />
-              </Link>
-            </motion.div>
-          </motion.div>
+              </motion.div>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -359,7 +230,7 @@ export default function MasterclassSection() {
               {/* YouTube iframe */}
               <div style={{ position: 'relative', paddingTop: '56.25%' }}>
                 <iframe
-                  src={EMBED_URL}
+                  src={`https://www.youtube.com/embed/${activeVideoId}?autoplay=1&rel=0&modestbranding=1&color=white`}
                   title="Classical Music Masterclass"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                   allowFullScreen

@@ -4,10 +4,11 @@ import { PlayCircle, Award, Users, BookOpen } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Hero from '../components/Hero';
 import PageShell from '../components/layout/PageShell';
-import MasterclassSection from '../components/MasterclassSection';
+import { useSEO } from '../hooks/useSEO';
 
 
 const features = [
+
   { icon: PlayCircle, title: 'Masterclasses', desc: 'Cinematic lessons with maestros — every phrase, every bol.' },
   { icon: Users, title: 'Live gurukul', desc: 'Intimate cohorts with real-time guidance, as in a royal mehfil.' },
   { icon: BookOpen, title: 'Rāgā encyclopædia', desc: 'Theory that breathes: that, chalan, and the soul of each raga.' },
@@ -15,7 +16,13 @@ const features = [
 ];
 
 export default function Home() {
+  useSEO({
+    title: 'Home',
+    description: 'Master Indian Classical Music with cinematic masterclasses and live gurukul sessions from the world\'s finest musicians.',
+  });
+
   return (
+
     <div className="w-full">
       <Hero />
 
@@ -62,8 +69,6 @@ export default function Home() {
         </div>
       </PageShell>
 
-      {/* ── Masterclass Feature Section ── */}
-      <MasterclassSection />
     </div>
   );
 }
