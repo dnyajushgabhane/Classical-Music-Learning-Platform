@@ -2,25 +2,20 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Play, Sparkles, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
-
-const MASTERCLASSES = [
-  {
-    id: 'Yn4R4endnC4',
-    title: 'Classical Raga Unveiled',
-    subtitle: 'Curated Masterclass · 38 min',
-    tag: 'Curated Masterclass'
-  },
-  {
-    id: 'fS2Xh9qZ1H8', // Placeholder for the second one, pt. hariprasad chaurasia
-    title: 'The Soul of the Bansuri',
-    subtitle: 'Exclusive Masterclass · 45 min',
-    tag: 'Exclusive'
-  }
-];
+import { useQuery } from '@tanstack/react-query';
+import { fetchMasterclasses } from '../services/api';
 
 export default function MasterclassSection() {
   const [open, setOpen] = useState(false);
   const [activeVideoId, setActiveVideoId] = useState(null);
+
+  const { data: masterclasses, isLoading } = useQuery({
+    queryKey: ['masterclasses'],
+    queryFn: fetchMasterclasses,
+    staleTime: 60000,
+  });
+
+  const displayMasterclasses = masterclasses && masterclasses.length > 0 ? masterclasses : [];
 
   // Close modal on Escape key
   const handleKeyDown = useCallback((e) => {
@@ -87,70 +82,80 @@ export default function MasterclassSection() {
 
           {/* ── Video Cards Grid ── */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12">
-            {MASTERCLASSES.map((mc, idx) => (
-              <motion.div
-                key={mc.id}
-                initial={{ opacity: 0, y: 32 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.7, delay: idx * 0.15 }}
-                className="flex flex-col"
-              >
-                {/* Card */}
-                <motion.button
-                  type="button"
-                  aria-label={`Play ${mc.title}`}
-                  onClick={() => handlePlay(mc.id)}
-                  className="group relative w-full overflow-hidden focus:outline-none premium-panel aspect-video"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.985 }}
+            {isLoading ? (
+              [...Array(2)].map((_, i) => (
+                <div key={i} className="aspect-video premium-panel skeleton-shimmer opacity-30" />
+              ))
+            ) : displayMasterclasses.length === 0 ? (
+              <div className="col-span-full text-center py-12">
+                <p className="text-ivory/40 italic">No masterclasses available yet.</p>
+              </div>
+            ) : (
+              displayMasterclasses.map((mc, idx) => (
+                <motion.div
+                  key={mc._id || mc.videoId}
+                  initial={{ opacity: 0, y: 32 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.7, delay: idx * 0.15 }}
+                  className="flex flex-col"
                 >
-                  <img
-                    src={`https://img.youtube.com/vi/${mc.id}/maxresdefault.jpg`}
-                    alt={mc.title}
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                    loading="lazy"
-                    onError={(e) => {
-                      e.target.src = `https://img.youtube.com/vi/${mc.id}/hqdefault.jpg`;
-                    }}
-                  />
-
-                  {/* Overlays */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
-                  
-                  {/* Info */}
-                  <div className="absolute inset-x-0 bottom-0 p-5 sm:p-6 text-left">
-                    <p className="font-display text-ivory/90 font-medium text-lg leading-snug">
-                      {mc.title}
-                    </p>
-                    <p className="text-ivory/50 text-xs tracking-widest uppercase mt-1.5">
-                      {mc.subtitle}
-                    </p>
-                  </div>
-
-                  {/* Play Button */}
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-14 h-14 flex items-center justify-center rounded-full bg-ivory/10 backdrop-blur-md border border-ivory/30 group-hover:scale-110 transition-transform duration-300">
-                      <Play className="text-ivory ml-1" size={20} fill="currentColor" />
-                    </div>
-                  </div>
-                </motion.button>
-
-                {/* Tag & Link */}
-                <div className="flex items-center justify-between mt-4 px-1">
-                  <div className="text-[10px] font-bold uppercase tracking-widest text-gold/80 px-3 py-1 rounded-full border border-gold/20 bg-gold/5">
-                    {mc.tag}
-                  </div>
-                  <Link
-                    to="/courses"
-                    className="group/link inline-flex items-center gap-2 text-xs font-medium text-ivory/70 hover:text-gold transition-colors"
+                  {/* Card */}
+                  <motion.button
+                    type="button"
+                    aria-label={`Play ${mc.title}`}
+                    onClick={() => handlePlay(mc.videoId)}
+                    className="group relative w-full overflow-hidden focus:outline-none premium-panel aspect-video"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.985 }}
                   >
-                    Watch Now
-                    <ArrowRight size={12} className="transition-transform group-hover/link:translate-x-1" />
-                  </Link>
-                </div>
-              </motion.div>
-            ))}
+                    <img
+                      src={mc.thumbnail || `https://img.youtube.com/vi/${mc.videoId}/maxresdefault.jpg`}
+                      alt={mc.title}
+                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                      loading="lazy"
+                      onError={(e) => {
+                        e.target.src = `https://img.youtube.com/vi/${mc.videoId}/hqdefault.jpg`;
+                      }}
+                    />
+
+                    {/* Overlays */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
+                    
+                    {/* Info */}
+                    <div className="absolute inset-x-0 bottom-0 p-5 sm:p-6 text-left">
+                      <p className="font-display text-ivory/90 font-medium text-lg leading-snug">
+                        {mc.title}
+                      </p>
+                      <p className="text-ivory/50 text-xs tracking-widest uppercase mt-1.5">
+                        {mc.subtitle || 'Premium Masterclass'}
+                      </p>
+                    </div>
+
+                    {/* Play Button */}
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="w-14 h-14 flex items-center justify-center rounded-full bg-ivory/10 backdrop-blur-md border border-ivory/30 group-hover:scale-110 transition-transform duration-300 shadow-glow-sm">
+                        <Play className="text-ivory ml-1" size={20} fill="currentColor" />
+                      </div>
+                    </div>
+                  </motion.button>
+
+                  {/* Tag & Link */}
+                  <div className="flex items-center justify-between mt-4 px-1">
+                    <div className="text-[10px] font-bold uppercase tracking-widest text-gold/80 px-3 py-1 rounded-full border border-gold/20 bg-gold/5">
+                      {mc.tag || 'Masterclass'}
+                    </div>
+                    <Link
+                      to="/courses"
+                      className="group/link inline-flex items-center gap-2 text-xs font-medium text-ivory/70 hover:text-gold transition-colors"
+                    >
+                      Watch Now
+                      <ArrowRight size={12} className="transition-transform group-hover/link:translate-x-1" />
+                    </Link>
+                  </div>
+                </motion.div>
+              ))
+            )}
           </div>
         </div>
       </section>

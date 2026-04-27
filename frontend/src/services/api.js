@@ -7,5 +7,6 @@ export * from './instructorService';
 export * from './reviewService';
 export * from './eventService';
 export * from './subscriptionService';
+export * from './masterclassService';
 
 export default API;

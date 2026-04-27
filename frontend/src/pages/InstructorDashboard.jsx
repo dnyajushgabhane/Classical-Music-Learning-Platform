@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import useAuthStore from '../store/authStore';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Users, BookOpen, TrendingUp, DollarSign, Edit, Radio, Star, MessageSquare, Calendar, Activity, ReceiptText, ArrowRight } from 'lucide-react';
+import { Plus, Users, BookOpen, TrendingUp, DollarSign, Edit, Radio, Video, Star, MessageSquare, Calendar, Activity, ReceiptText, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import PageShell from '../components/layout/PageShell';
 import { 
@@ -14,8 +14,11 @@ import {
   fetchStudentAnalytics,
   fetchRevenueAnalytics,
   fetchActivityFeed,
-  fetchRevenueDetails
+  fetchRevenueDetails,
+  addMasterclass,
+  fetchVideoInfo
 } from '../services/api';
+import { toast } from 'react-hot-toast';
 import CourseUploadModal from '../components/CourseUploadModal';
 import CourseReviewsModal from '../components/CourseReviewsModal';
 import ScheduleMasterclassModal from '../components/ScheduleMasterclassModal';
@@ -26,6 +29,7 @@ import RevenueLedger from '../components/instructor/RevenueLedger';
 const InstructorDashboard = () => {
   const { userInfo } = useAuthStore();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [liveTitle, setLiveTitle] = useState('');
   const [liveCourse, setLiveCourse] = useState('');
   const [liveStart, setLiveStart] = useState('');
@@ -34,6 +38,73 @@ const InstructorDashboard = () => {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [selectedCourseForReviews, setSelectedCourseForReviews] = useState(null);
+  
+  // YouTube Masterclass State
+  const [ytUrl, setYtUrl] = useState('');
+  const [ytLoading, setYtLoading] = useState(false);
+  const [ytPreview, setYtPreview] = useState(null);
+  const [isAddingMasterclass, setIsAddingMasterclass] = useState(false);
+
+  const extractVideoId = (url) => {
+    const regExp = /(?:youtube\.com\/.*v=|youtu\.be\/)([^&]+)/;
+    const match = url.match(regExp);
+    return match ? match[1] : null;
+  };
+
+  const handleYtUrlChange = async (e) => {
+    const url = e.target.value;
+    setYtUrl(url);
+    const videoId = extractVideoId(url);
+    
+    if (videoId) {
+      setYtLoading(true);
+      try {
+        const info = await fetchVideoInfo(url);
+        setYtPreview({
+          videoId,
+          title: info.title,
+          thumbnail: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
+          subtitle: info.author ? `Curated Masterclass · ${info.author}` : 'Exclusive Masterclass'
+        });
+      } catch (error) {
+        setYtPreview({
+          videoId,
+          title: 'Masterclass Video',
+          thumbnail: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
+          subtitle: 'Premium Masterclass'
+        });
+      } finally {
+        setYtLoading(false);
+      }
+    } else {
+      setYtPreview(null);
+    }
+  };
+
+  const handleAddMasterclass = async () => {
+    if (!ytPreview) return;
+    
+    setIsAddingMasterclass(true);
+    try {
+      await addMasterclass({
+        title: ytPreview.title,
+        youtubeUrl: ytUrl,
+        videoId: ytPreview.videoId,
+        thumbnail: ytPreview.thumbnail,
+        instructorId: userInfo._id,
+        subtitle: ytPreview.subtitle,
+        tag: ytPreview.tag || 'Masterclass'
+      });
+      toast.success('Masterclass added successfully!');
+      queryClient.invalidateQueries(['masterclasses']);
+      setYtUrl('');
+      setYtPreview(null);
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to add masterclass');
+    } finally {
+      setIsAddingMasterclass(false);
+    }
+  };
 
   const { data: courses, isLoading: isCoursesLoading } = useQuery({
     queryKey: ['instructor-courses', userInfo?._id],
@@ -282,6 +353,84 @@ const InstructorDashboard = () => {
                   ))
                 ) : (
                   <p className="text-[10px] text-ivory/30 italic">No future sessions on the horizon.</p>
+                )}
+              </div>
+            </div>
+          </section>
+
+          {/* 1.2 YouTube Masterclass Upload */}
+          <section className="space-y-6">
+            <h2 className="text-xl font-display font-semibold text-ivory flex items-center gap-2">
+               <Video className="w-5 h-5 text-gold" /> Curate Masterclass
+            </h2>
+            
+            <div className="premium-panel p-6">
+              <p className="text-xs text-gold-safe mb-4 uppercase tracking-widest font-bold">Add YouTube Masterclass</p>
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-col sm:flex-row gap-3 items-start">
+                  <div className="relative flex-1 w-full flex flex-col gap-3">
+                    <div className="relative w-full">
+                      <Video className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                      <input
+                        value={ytUrl}
+                        onChange={handleYtUrlChange}
+                        placeholder="Paste YouTube URL"
+                        className="w-full bg-ink/50 border border-gold/15 rounded-xl px-10 py-3 text-ivory text-sm focus:border-gold/40 outline-none transition-colors"
+                      />
+                    </div>
+                    {ytPreview && (
+                      <input
+                        value={ytPreview.subtitle || ''}
+                        onChange={(e) => setYtPreview({ ...ytPreview, subtitle: e.target.value })}
+                        placeholder="Subtitle (e.g., Curated Masterclass · 30 min)"
+                        className="w-full bg-ink/50 border border-gold/15 rounded-xl px-4 py-2 text-ivory text-xs focus:border-gold/40 outline-none transition-colors"
+                      />
+                    )}
+                  </div>
+                  <motion.button
+                    type="button"
+                    whileTap={{ scale: 0.98 }}
+                    disabled={!ytPreview || isAddingMasterclass}
+                    onClick={handleAddMasterclass}
+                    className="w-full sm:w-auto rounded-xl bg-gradient-to-r from-gold to-gold-dark text-ink font-bold px-6 py-3 text-sm disabled:opacity-40 shadow-glow-sm flex items-center justify-center gap-2"
+                  >
+                    {isAddingMasterclass ? 'Adding...' : 'Add Masterclass'}
+                  </motion.button>
+                </div>
+
+                <AnimatePresence>
+                  {ytPreview && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="flex items-center gap-4 p-4 bg-gold/5 border border-gold/10 rounded-xl mt-2">
+                        <div className="relative w-32 aspect-video rounded-lg overflow-hidden border border-gold/20">
+                          <img src={ytPreview.thumbnail} alt="Preview" className="w-full h-full object-cover" />
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                             <Video className="w-6 h-6 text-white" />
+                          </div>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[10px] text-gold uppercase tracking-widest font-bold mb-1">Preview</p>
+                          <h4 className="text-sm font-bold text-ivory truncate">{ytPreview.title}</h4>
+                          <p className="text-[10px] text-ivory/40">Ready to be published to Masterclasses</p>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {ytUrl && !ytPreview && !ytLoading && (
+                  <p className="text-[10px] text-red-400 italic">Please enter a valid YouTube URL.</p>
+                )}
+                {ytLoading && (
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 border-2 border-gold border-t-transparent animate-spin rounded-full" />
+                    <p className="text-[10px] text-gold/60">Fetching video details...</p>
+                  </div>
                 )}
               </div>
             </div>

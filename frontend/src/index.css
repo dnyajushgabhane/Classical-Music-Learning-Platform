@@ -453,6 +453,12 @@
   .perspective-dramatic {
     perspective: 1400px;
   }
+  .shadow-glow-sm {
+    box-shadow: 0 0 15px rgba(212, 175, 55, 0.3);
+  }
+  .shadow-glow-md {
+    box-shadow: 0 0 25px rgba(212, 175, 55, 0.5);
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════
