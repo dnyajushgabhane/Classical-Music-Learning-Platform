@@ -39,17 +39,6 @@ function canTeachSession(user, session) {
 
   const tid = extractId(tDoc);
 
-  // --- DEBUG (remove after confirming fix) ---
-  try {
-    const fs = require('fs');
-    const path = require('path');
-    fs.appendFileSync(
-      path.join(__dirname, '..', 'debug_access.log'),
-      `[canTeachSession] uid=${uid} tid=${tid} role=${user.role} email=${user.email} tEmail=${tDoc.email || 'N/A'} match=${tid === uid}\n`
-    );
-  } catch (_) {}
-  // --- END DEBUG ---
-
   // Primary: ID match
   if (tid && uid && tid === uid) return true;
 

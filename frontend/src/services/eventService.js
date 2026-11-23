@@ -11,6 +11,6 @@ export const bookEventTicket = async (eventId) => {
 };
 
 export const fetchMeetingHistory = async (filters = {}) => {
-    const { data } = await API.get('/meetings/history', { params: filters });
+    const { data } = await API.get('/live-sessions/history/meetings', { params: filters });
     return data;
 };

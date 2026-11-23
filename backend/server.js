@@ -55,7 +55,13 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // 🌐 CORS — CLIENT_ORIGIN can be comma-separated for multiple allowed origins
 // e.g. "https://your-app.vercel.app,http://localhost:5173"
 const rawOrigins = process.env.CLIENT_ORIGIN || 'http://localhost:5173';
-const allowedOrigins = rawOrigins.split(',').map((o) => o.trim());
+const allowedOrigins = [
+  ...rawOrigins.split(',').map((o) => o.trim()),
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://localhost:3000',
+  'http://localhost'
+];
 
 app.use(
   cors({
