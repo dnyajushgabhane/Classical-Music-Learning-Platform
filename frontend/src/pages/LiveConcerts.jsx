@@ -50,7 +50,7 @@ const LiveConcerts = () => {
     },
   });
 
-  const displayEvents = events || mockEvents;
+  const displayEvents = Array.isArray(events) && events.length > 0 ? events : mockEvents;
 
   if (isLoading) {
     return (
